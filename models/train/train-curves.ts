@@ -61,6 +61,11 @@ for (let step = 0; step < STEPS; step += 1) {
     });
   }
 }
+curve.push({
+  step: STEPS,
+  train: meanLoss(tinyTrain),
+  heldOut: meanLoss(heldOut),
+});
 writeFileSync(
   "models/weights/curves.json",
   JSON.stringify({ SEED, TRAIN_LINES, curve }, null, 2),

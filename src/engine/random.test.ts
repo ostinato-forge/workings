@@ -46,6 +46,22 @@ test("stream golden values for seed 42 stay fixed", () => {
   ]);
 });
 
+test("deep stream golden values for seed 64 stay fixed", () => {
+  const rng = mulberry32(64);
+  const values: number[] = [];
+  for (let index = 0; index <= 99999; index += 1) {
+    const value = rng();
+    if (index === 0 || index === 999 || index === 99999) {
+      values.push(value);
+    }
+  }
+  expect(values).toEqual([
+    0.8459169301204383,
+    0.07847114000469446,
+    0.6960705448873341,
+  ]);
+});
+
 test("shuffled is deterministic and preserves elements", () => {
   const rng1 = mulberry32(3);
   const rng2 = mulberry32(3);

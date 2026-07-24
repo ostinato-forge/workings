@@ -12,6 +12,21 @@ export function sampleFromLogits(
   rng: Rng,
 ): number {
   if (logits.length === 0) throw new Error("no logits to sample");
+  if (!Number.isFinite(config.temperature) || config.temperature < 0) {
+    throw new Error("temperature must be a finite non-negative number");
+  }
+  if (
+    config.topK !== undefined &&
+    (!Number.isInteger(config.topK) || config.topK <= 0)
+  ) {
+    throw new Error("topK must be a positive integer");
+  }
+  if (
+    config.topP !== undefined &&
+    !(config.topP > 0 && config.topP <= 1)
+  ) {
+    throw new Error("topP must be greater than 0 and at most 1");
+  }
   const indexed = logits.map((value, index) => ({ value, index }));
   indexed.sort((a, b) => b.value - a.value);
 

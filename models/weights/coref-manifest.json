@@ -1,5 +1,7 @@
 {
   "seed": 64,
+  "nodeVersion": "v22.22.2",
+  "arch": "x64",
   "steps": 3000,
   "batch": 16,
   "learningRate": 0.5,
@@ -13,13 +15,13 @@
     "mlpWidth": 128
   },
   "vocabSize": 48,
-  "weightsHash": "741ed24ea44f7b569b6daba3995c24d95bd358d5757d2bab44a84e5d1e07d66e",
+  "weightsHash": "20aa363de68cb2abed69938af16cb0d71c84d61be4ba41f7a4842deaa5ce94eb",
   "metrics": {
     "heldOutLines": 235,
     "pronounAccuracy": 1,
     "distractorLines": 106,
     "attentionHitRate": 1,
-    "attentionMeanWeight": 0.7086750547391389,
-    "finalLoss": 0.8340597377805608
+    "attentionMeanWeight": 0.7086750547469157,
+    "finalLoss": 0.7905181489935734
   }
 }

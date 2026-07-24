@@ -51,8 +51,10 @@ export class Tensor {
         const a = this.data[i * this.cols + k] as number;
         if (a === 0) continue;
         for (let j = 0; j < other.cols; j += 1) {
-          out.data[i * other.cols + j] +=
-            a * (other.data[k * other.cols + j] as number);
+          const outIndex = i * other.cols + j;
+          const current = out.data[outIndex] as number;
+          out.data[outIndex] =
+            current + a * (other.data[k * other.cols + j] as number);
         }
       }
     }
@@ -62,10 +64,14 @@ export class Tensor {
           const g = out.grad[i * other.cols + j] as number;
           if (g === 0) continue;
           for (let k = 0; k < this.cols; k += 1) {
-            this.grad[i * this.cols + k] +=
-              g * (other.data[k * other.cols + j] as number);
-            other.grad[k * other.cols + j] +=
-              g * (this.data[i * this.cols + k] as number);
+            const leftIndex = i * this.cols + k;
+            const leftGrad = this.grad[leftIndex] as number;
+            this.grad[leftIndex] =
+              leftGrad + g * (other.data[k * other.cols + j] as number);
+            const rightIndex = k * other.cols + j;
+            const rightGrad = other.grad[rightIndex] as number;
+            other.grad[rightIndex] =
+              rightGrad + g * (this.data[i * this.cols + k] as number);
           }
         }
       }
@@ -92,10 +98,17 @@ export class Tensor {
     out.setBackward(() => {
       for (let i = 0; i < this.rows; i += 1) {
         for (let j = 0; j < this.cols; j += 1) {
-          const g = out.grad[i * this.cols + j] as number;
-          this.grad[i * this.cols + j] += g;
-          if (broadcast) other.grad[j] += g;
-          else other.grad[i * this.cols + j] += g;
+          const index = i * this.cols + j;
+          const g = out.grad[index] as number;
+          const leftGrad = this.grad[index] as number;
+          this.grad[index] = leftGrad + g;
+          if (broadcast) {
+            const rightGrad = other.grad[j] as number;
+            other.grad[j] = rightGrad + g;
+          } else {
+            const rightGrad = other.grad[index] as number;
+            other.grad[index] = rightGrad + g;
+          }
         }
       }
     });
@@ -112,8 +125,12 @@ export class Tensor {
     }
     out.setBackward(() => {
       for (let i = 0; i < out.data.length; i += 1) {
-        this.grad[i] += (out.grad[i] as number) * (other.data[i] as number);
-        other.grad[i] += (out.grad[i] as number) * (this.data[i] as number);
+        const leftGrad = this.grad[i] as number;
+        this.grad[i] =
+          leftGrad + (out.grad[i] as number) * (other.data[i] as number);
+        const rightGrad = other.grad[i] as number;
+        other.grad[i] =
+          rightGrad + (out.grad[i] as number) * (this.data[i] as number);
       }
     });
     return out;
@@ -126,7 +143,8 @@ export class Tensor {
     }
     out.setBackward(() => {
       for (let i = 0; i < out.data.length; i += 1) {
-        this.grad[i] += (out.grad[i] as number) * s;
+        const current = this.grad[i] as number;
+        this.grad[i] = current + (out.grad[i] as number) * s;
       }
     });
     return out;
@@ -140,7 +158,8 @@ export class Tensor {
     out.setBackward(() => {
       for (let i = 0; i < out.data.length; i += 1) {
         if ((this.data[i] as number) > 0) {
-          this.grad[i] += out.grad[i] as number;
+          const current = this.grad[i] as number;
+          this.grad[i] = current + (out.grad[i] as number);
         }
       }
     });
@@ -157,7 +176,10 @@ export class Tensor {
     out.setBackward(() => {
       for (let i = 0; i < this.rows; i += 1) {
         for (let j = 0; j < this.cols; j += 1) {
-          this.grad[i * this.cols + j] += out.grad[j * this.rows + i] as number;
+          const index = i * this.cols + j;
+          const current = this.grad[index] as number;
+          this.grad[index] =
+            current + (out.grad[j * this.rows + i] as number);
         }
       }
     });
@@ -173,7 +195,10 @@ export class Tensor {
     out.data[0] = total;
     out.setBackward(() => {
       const g = out.grad[0] as number;
-      for (let i = 0; i < this.data.length; i += 1) this.grad[i] += g;
+      for (let i = 0; i < this.data.length; i += 1) {
+        const current = this.grad[i] as number;
+        this.grad[i] = current + g;
+      }
     });
     return out;
   }
@@ -211,8 +236,10 @@ export class Tensor {
         }
         for (let c = 0; c < limit; c += 1) {
           const p = out.data[r * this.cols + c] as number;
-          this.grad[r * this.cols + c] +=
-            p * ((out.grad[r * this.cols + c] as number) - dot);
+          const index = r * this.cols + c;
+          const current = this.grad[index] as number;
+          this.grad[index] =
+            current + p * ((out.grad[index] as number) - dot);
         }
       }
     });
@@ -223,20 +250,43 @@ export class Tensor {
     if (targets.length !== logits.rows) {
       throw new Error("one target per logit row required");
     }
-    const probs = logits.softmaxRows();
-    const out = probs.child(1, 1, [probs]);
+    const out = logits.child(1, 1, [logits]);
+    const probabilities = new Float64Array(logits.data.length);
     let total = 0;
     for (let r = 0; r < logits.rows; r += 1) {
+      let max = -Infinity;
+      for (let c = 0; c < logits.cols; c += 1) {
+        max = Math.max(max, logits.data[r * logits.cols + c] as number);
+      }
+      let denom = 0;
+      for (let c = 0; c < logits.cols; c += 1) {
+        denom += Math.exp(
+          (logits.data[r * logits.cols + c] as number) - max,
+        );
+      }
+      for (let c = 0; c < logits.cols; c += 1) {
+        const index = r * logits.cols + c;
+        probabilities[index] =
+          Math.exp((logits.data[index] as number) - max) / denom;
+      }
       const target = targets[r] as number;
-      total += -Math.log(Math.max(probs.at(r, target), 1e-12));
+      total +=
+        max +
+        Math.log(denom) -
+        (logits.data[r * logits.cols + target] as number);
     }
     out.data[0] = total / logits.rows;
     out.setBackward(() => {
       const g = (out.grad[0] as number) / logits.rows;
       for (let r = 0; r < logits.rows; r += 1) {
         const target = targets[r] as number;
-        probs.grad[r * logits.cols + target] +=
-          g * (-1 / Math.max(probs.at(r, target), 1e-12));
+        for (let c = 0; c < logits.cols; c += 1) {
+          const index = r * logits.cols + c;
+          const current = logits.grad[index] as number;
+          const oneHot = c === target ? 1 : 0;
+          logits.grad[index] =
+            current + g * ((probabilities[index] as number) - oneHot);
+        }
       }
     });
     return out;
@@ -253,8 +303,10 @@ export class Tensor {
     out.setBackward(() => {
       indices.forEach((rowIndex, i) => {
         for (let c = 0; c < table.cols; c += 1) {
-          table.grad[rowIndex * table.cols + c] +=
-            out.grad[i * table.cols + c] as number;
+          const tableIndex = rowIndex * table.cols + c;
+          const current = table.grad[tableIndex] as number;
+          table.grad[tableIndex] =
+            current + (out.grad[i * table.cols + c] as number);
         }
       });
     });
@@ -274,6 +326,7 @@ export class Tensor {
       order.push(t);
     };
     visit(this);
+    for (const tensor of order) tensor.grad.fill(0);
     this.grad[0] = 1;
     for (let i = order.length - 1; i >= 0; i -= 1) {
       (order[i] as Tensor).backwardFn?.();

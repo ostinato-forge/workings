@@ -11,6 +11,33 @@ test("temperature zero is argmax, always", () => {
   }
 });
 
+test.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -0.1])(
+  "rejects invalid temperature %s",
+  (temperature) => {
+    expect(() =>
+      sampleFromLogits(logits, { temperature }, mulberry32(64)),
+    ).toThrow("temperature must be a finite non-negative number");
+  },
+);
+
+test.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+  "rejects invalid topK %s",
+  (topK) => {
+    expect(() =>
+      sampleFromLogits(logits, { temperature: 1, topK }, mulberry32(64)),
+    ).toThrow("topK must be a positive integer");
+  },
+);
+
+test.each([0, -0.1, 1.1, Number.NaN, Number.POSITIVE_INFINITY])(
+  "rejects invalid topP %s",
+  (topP) => {
+    expect(() =>
+      sampleFromLogits(logits, { temperature: 1, topP }, mulberry32(64)),
+    ).toThrow("topP must be greater than 0 and at most 1");
+  },
+);
+
 test("higher temperature spreads choices over more tokens", () => {
   const count = (temperature: number): number => {
     const rng = mulberry32(64);

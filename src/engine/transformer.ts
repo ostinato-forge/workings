@@ -120,19 +120,27 @@ export function trainStep(
   batch: number[][],
   learningRate: number,
 ): number {
+  if (batch.length === 0) {
+    throw new Error("batch must contain at least one sequence");
+  }
+  if (batch.some((sequence) => sequence.length < 2)) {
+    throw new Error("each sequence must contain at least two tokens");
+  }
   const params = parameters(model);
   for (const p of params) p.zeroGrad();
   let lossTotal = 0;
   let count = 0;
+  let batchLoss: Tensor | null = null;
   for (const sequence of batch) {
     const inputs = sequence.slice(0, -1);
     const targets = sequence.slice(1);
     const { logits } = forward(model, inputs);
     const loss = Tensor.crossEntropyMean(logits, targets);
-    loss.backward();
+    batchLoss = batchLoss === null ? loss : loss.add(batchLoss);
     lossTotal += loss.data[0] as number;
     count += 1;
   }
+  (batchLoss as Tensor).backward();
   for (const p of params) {
     for (let i = 0; i < p.data.length; i += 1) {
       p.data[i] =
@@ -150,16 +158,9 @@ function roundFloat32(values: Float64Array): number[] {
 }
 
 export function serialize(model: TransformerModel): SerializedModel {
-  const tensors = parameters(model).map((p) => {
-    const rounded = roundFloat32(p.data);
-    for (let i = 0; i < p.data.length; i += 1) {
-      p.data[i] = rounded[i] as number;
-    }
-    return rounded;
-  });
   return {
-    config: model.config,
-    tensors,
+    config: structuredClone(model.config),
+    tensors: parameters(model).map((p) => roundFloat32(p.data)),
   };
 }
 

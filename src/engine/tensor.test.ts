@@ -98,6 +98,15 @@ test("cross entropy gradients", () => {
   );
 });
 
+test("cross entropy gradients stay stable for extreme logits", () => {
+  const logits = Tensor.from(2, 2, [30, 0, -30, 5]);
+  gradcheck(
+    [logits],
+    ([x]) => Tensor.crossEntropyMean(x as Tensor, [1, 0]),
+    1e-4,
+  );
+});
+
 test("gather rows gradients accumulate to the embedding table", () => {
   const table = randomTensor(6, 4, 12);
   gradcheck([table], ([t]) =>
@@ -111,4 +120,13 @@ test("transpose gradients", () => {
   gradcheck([a, b], ([x, y]) =>
     (x as Tensor).transpose().matmul(y as Tensor).sum(),
   );
+});
+
+test("repeated backward calls replace reachable gradients", () => {
+  const x = Tensor.from(1, 1, [3]);
+  const y = x.mulScalar(2).sum();
+  y.backward();
+  expect(x.grad[0]).toBe(2);
+  y.backward();
+  expect(x.grad[0]).toBe(2);
 });

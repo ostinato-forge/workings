@@ -1,6 +1,13 @@
 import { expect, test } from "vitest";
 import { mulberry32 } from "./random";
-import { createModel, forward, trainStep, serialize, deserialize } from "./transformer";
+import {
+  createModel,
+  deserialize,
+  forward,
+  parameters,
+  serialize,
+  trainStep,
+} from "./transformer";
 
 const config = {
   vocabSize: 11,
@@ -44,12 +51,50 @@ test("training reduces loss on a repeated pattern", () => {
   expect(last).toBeLessThan(first * 0.5);
 });
 
+test("trainStep rejects an empty batch without changing parameters", () => {
+  const model = createModel(config, mulberry32(64));
+  const before = parameters(model).map((p) => [...p.data]);
+  expect(() => trainStep(model, [], 0.05)).toThrow(
+    "batch must contain at least one sequence",
+  );
+  expect(parameters(model).map((p) => [...p.data])).toEqual(before);
+});
+
+test("trainStep rejects short sequences without changing parameters", () => {
+  const model = createModel(config, mulberry32(64));
+  const before = parameters(model).map((p) => [...p.data]);
+  expect(() => trainStep(model, [[1, 2], [3]], 0.05)).toThrow(
+    "each sequence must contain at least two tokens",
+  );
+  expect(parameters(model).map((p) => [...p.data])).toEqual(before);
+});
+
 test("serialize and deserialize round-trip behavior exactly", () => {
   const model = createModel(config, mulberry32(64));
-  const json = serialize(model);
-  const restored = deserialize(json);
-  const a = forward(model, [2, 9, 4]).logits;
-  const b = forward(restored, [2, 9, 4]).logits;
+  const first = deserialize(serialize(model));
+  const second = deserialize(serialize(model));
+  const a = forward(first, [2, 9, 4]).logits;
+  const b = forward(second, [2, 9, 4]).logits;
   expect([...b.data]).toEqual([...a.data]);
-  expect(JSON.stringify(serialize(restored))).toBe(JSON.stringify(json));
+});
+
+test("serialize leaves model forward output bit-identical", () => {
+  const model = createModel(config, mulberry32(64));
+  const before = [...forward(model, [2, 9, 4]).logits.data];
+  serialize(model);
+  const after = [...forward(model, [2, 9, 4]).logits.data];
+  expect(after).toEqual(before);
+});
+
+test("serialized config does not alias model config", () => {
+  const model = createModel(config, mulberry32(64));
+  const json = serialize(model);
+  json.config.dModel = 999;
+  expect(model.config.dModel).toBe(config.dModel);
+});
+
+test("serialized model is canonical after deserialization", () => {
+  const model = createModel(config, mulberry32(64));
+  const json = serialize(model);
+  expect(serialize(deserialize(json))).toEqual(json);
 });
