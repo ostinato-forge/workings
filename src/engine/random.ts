@@ -1,5 +1,15 @@
 export type Rng = () => number;
 
+/*
+ * Stream-stability contract: the exact numeric sequence this generator
+ * produces for a given seed is a committed artifact. Trained model weights
+ * and CI reproducibility checks derive from it. Do not change the algorithm,
+ * constants, or arithmetic, even for rewrites that look equivalent. Any
+ * change to the stream is a breaking change and requires regeneration of
+ * all stored artifacts.
+ *
+ * mulberry32 by Tommy Ettinger, public domain.
+ */
 export function mulberry32(seed: number): Rng {
   let a = seed >>> 0;
   return () => {
@@ -11,6 +21,12 @@ export function mulberry32(seed: number): Rng {
   };
 }
 
+/*
+ * Bias note: floor(rng() * n) is bias-free when n divides 2^32. Otherwise
+ * each outcome's probability deviates from 1/n by at most 2^-32, a relative
+ * error on the order of n / 2^32, which is sufficient for this project's
+ * shuffling and sampling.
+ */
 export function randInt(rng: Rng, exclusiveMax: number): number {
   return Math.floor(rng() * exclusiveMax);
 }

@@ -36,6 +36,16 @@ test("randInt covers the full range and respects bounds", () => {
   expect(seen.size).toBe(4);
 });
 
+// A failure here means the RNG stream changed and all stored artifacts
+// must be regenerated.
+test("stream golden values for seed 42 stay fixed", () => {
+  const rng = mulberry32(42);
+  expect([rng(), rng(), rng(), rng(), rng()]).toEqual([
+    0.6011037519201636, 0.44829055899754167, 0.8524657934904099,
+    0.6697340414393693, 0.17481389874592423,
+  ]);
+});
+
 test("shuffled is deterministic and preserves elements", () => {
   const rng1 = mulberry32(3);
   const rng2 = mulberry32(3);
