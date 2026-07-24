@@ -1,0 +1,48 @@
+import { expect, test } from "vitest";
+import { mulberry32, randInt, shuffled } from "./random";
+
+test("same seed gives identical streams", () => {
+  const a = mulberry32(64);
+  const b = mulberry32(64);
+  const streamA = [a(), a(), a(), a(), a()];
+  const streamB = [b(), b(), b(), b(), b()];
+  expect(streamA).toEqual(streamB);
+});
+
+test("different seeds give different streams", () => {
+  const a = mulberry32(1);
+  const b = mulberry32(2);
+  expect([a(), a(), a()]).not.toEqual([b(), b(), b()]);
+});
+
+test("values stay in [0, 1)", () => {
+  const rng = mulberry32(7);
+  for (let i = 0; i < 1000; i += 1) {
+    const v = rng();
+    expect(v).toBeGreaterThanOrEqual(0);
+    expect(v).toBeLessThan(1);
+  }
+});
+
+test("randInt covers the full range and respects bounds", () => {
+  const rng = mulberry32(9);
+  const seen = new Set<number>();
+  for (let i = 0; i < 500; i += 1) {
+    const v = randInt(rng, 4);
+    expect(v).toBeGreaterThanOrEqual(0);
+    expect(v).toBeLessThan(4);
+    seen.add(v);
+  }
+  expect(seen.size).toBe(4);
+});
+
+test("shuffled is deterministic and preserves elements", () => {
+  const rng1 = mulberry32(3);
+  const rng2 = mulberry32(3);
+  const items = ["a", "b", "c", "d", "e"];
+  const s1 = shuffled(rng1, items);
+  const s2 = shuffled(rng2, items);
+  expect(s1).toEqual(s2);
+  expect([...s1].sort()).toEqual([...items].sort());
+  expect(items).toEqual(["a", "b", "c", "d", "e"]);
+});
