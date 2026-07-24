@@ -31,3 +31,21 @@ test("final-layer attention finds the referent legibly", () => {
   expect(manifest.metrics.attentionHitRate).toBeGreaterThanOrEqual(0.9);
   expect(manifest.metrics.attentionMeanWeight).toBeGreaterThanOrEqual(0.5);
 });
+
+test("starved training run shows visible divergence", () => {
+  const { curve } = JSON.parse(
+    readFileSync("models/weights/curves.json", "utf8"),
+  ) as { curve: { step: number; train: number; heldOut: number }[] };
+  const last = curve[curve.length - 1];
+  const first = curve[0];
+  expect(last).toBeDefined();
+  expect(first).toBeDefined();
+  // train loss fell substantially
+  expect((last as { train: number }).train).toBeLessThan(
+    (first as { train: number }).train * 0.5,
+  );
+  // and the gap is visible: held-out at least 0.5 nats above train
+  expect(
+    (last as { heldOut: number }).heldOut - (last as { train: number }).train,
+  ).toBeGreaterThan(0.5);
+});
