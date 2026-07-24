@@ -1,0 +1,25 @@
+{
+  "seed": 64,
+  "steps": 3000,
+  "batch": 16,
+  "learningRate": 0.5,
+  "config": {
+    "vocabSize": 48,
+    "context": 24,
+    "dModel": 32,
+    "layers": 2,
+    "heads": 2,
+    "dHead": 16,
+    "mlpWidth": 128
+  },
+  "vocabSize": 48,
+  "weightsHash": "741ed24ea44f7b569b6daba3995c24d95bd358d5757d2bab44a84e5d1e07d66e",
+  "metrics": {
+    "heldOutLines": 235,
+    "pronounAccuracy": 1,
+    "distractorLines": 106,
+    "attentionHitRate": 1,
+    "attentionMeanWeight": 0.7086750547391389,
+    "finalLoss": 0.8340597377805608
+  }
+}
