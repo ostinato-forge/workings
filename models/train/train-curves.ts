@@ -17,7 +17,9 @@ const LEARNING_RATE = 0.1;
 const SAMPLE_EVERY = 20;
 
 const corpus = generateCorpus(SEED);
-const tokenizer = buildTokenizer([...corpus.train, ...corpus.heldOut]);
+const tokenizer = buildTokenizer(
+  [...corpus.train, ...corpus.heldOut].map((item) => item.text),
+);
 const config: TransformerConfig = {
   vocabSize: tokenizer.vocab.length,
   context: 24,
@@ -32,8 +34,10 @@ const rng = mulberry32(SEED);
 const model = createModel(config, rng);
 const tinyTrain = corpus.train
   .slice(0, TRAIN_LINES)
-  .map((l) => tokenizer.encode(l));
-const heldOut = corpus.heldOut.slice(0, 100).map((l) => tokenizer.encode(l));
+  .map((item) => tokenizer.encode(item.text));
+const heldOut = corpus.heldOut
+  .slice(0, 100)
+  .map((item) => tokenizer.encode(item.text));
 
 function meanLoss(sequences: number[][]): number {
   let total = 0;

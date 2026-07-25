@@ -8,52 +8,63 @@ test("generation is deterministic per seed", () => {
   expect(a.heldOut).toEqual(b.heldOut);
 });
 
-test("pronoun gender always matches its referent name", () => {
+test("metadata identifies varied referent positions with matching pronouns", () => {
   const { train, heldOut } = generateCorpus(64);
-  for (const line of [...train, ...heldOut]) {
-    const words = line.split(" ");
+  const referentPositions = new Set<number>();
+  for (const item of [...train, ...heldOut]) {
+    const words = item.text.split(" ");
     const pronounIndex = words.findIndex((w) => w === "she" || w === "he");
     expect(pronounIndex).toBeGreaterThan(0);
     const pronoun = words[pronounIndex];
-    const namesInLine = words.filter(
-      (w) => FEMALE_NAMES.includes(w) || MALE_NAMES.includes(w),
-    );
-    const referent = namesInLine[0];
+    const referent = words[item.referentIndex];
     expect(referent).toBeDefined();
     const expectedPronoun = FEMALE_NAMES.includes(referent as string)
       ? "she"
       : "he";
     expect(pronoun).toBe(expectedPronoun);
+    referentPositions.add(item.referentIndex);
+    if (item.distractorIndex === null) {
+      expect(item.distractorKind).toBe("none");
+    } else {
+      expect(words[item.distractorIndex]).toBeDefined();
+      expect(item.distractorKind).not.toBe("none");
+    }
   }
+  expect(referentPositions.size).toBeGreaterThanOrEqual(3);
+  expect(referentPositions).toEqual(new Set([0, 1, 2, 3]));
 });
 
-test("distractor lines contain a second name of the opposite gender", () => {
-  const { train } = generateCorpus(64);
-  const withDistractor = train.filter((line) => {
-    const words = line.split(" ");
-    const names = words.filter(
-      (w) => FEMALE_NAMES.includes(w) || MALE_NAMES.includes(w),
-    );
-    return names.length === 2;
-  });
-  expect(withDistractor.length).toBeGreaterThan(train.length * 0.3);
-  for (const line of withDistractor) {
-    const words = line.split(" ");
-    const names = words.filter(
-      (w) => FEMALE_NAMES.includes(w) || MALE_NAMES.includes(w),
-    );
-    const genders = names.map((n) =>
-      FEMALE_NAMES.includes(n as string) ? "f" : "m",
-    );
-    expect(new Set(genders).size).toBe(2);
+test("distractor lines mix opposite and same gender names evenly", () => {
+  const corpus = generateCorpus(64);
+  const all = [...corpus.train, ...corpus.heldOut];
+  const opposite = all.filter((item) => item.distractorKind === "opposite");
+  const same = all.filter((item) => item.distractorKind === "same");
+  expect(
+    Math.abs(opposite.length - same.length) / (opposite.length + same.length),
+  ).toBeLessThan(0.1);
+  for (const item of [...opposite, ...same]) {
+    const words = item.text.split(" ");
+    const referent = words[item.referentIndex] as string;
+    const distractor = words[item.distractorIndex as number] as string;
+    const referentIsFemale = FEMALE_NAMES.includes(referent);
+    const distractorIsFemale = FEMALE_NAMES.includes(distractor);
+    expect(FEMALE_NAMES.includes(distractor) || MALE_NAMES.includes(distractor)).toBe(true);
+    if (item.distractorKind === "opposite") {
+      expect(distractorIsFemale).not.toBe(referentIsFemale);
+    } else {
+      expect(distractorIsFemale).toBe(referentIsFemale);
+      expect(distractor).not.toBe(referent);
+    }
   }
+  expect(corpus.heldOut.filter((item) => item.distractorKind === "opposite").length).toBeGreaterThanOrEqual(50);
+  expect(corpus.heldOut.filter((item) => item.distractorKind === "same").length).toBeGreaterThanOrEqual(50);
 });
 
 test("held-out lines never appear in training", () => {
   const { train, heldOut } = generateCorpus(64);
-  const trainSet = new Set(train);
-  for (const line of heldOut) {
-    expect(trainSet.has(line)).toBe(false);
+  const trainSet = new Set(train.map((item) => item.text));
+  for (const item of heldOut) {
+    expect(trainSet.has(item.text)).toBe(false);
   }
   expect(heldOut.length).toBeGreaterThanOrEqual(200);
   expect(train.length).toBeGreaterThanOrEqual(2000);

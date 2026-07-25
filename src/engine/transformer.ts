@@ -119,12 +119,16 @@ export function trainStep(
   model: TransformerModel,
   batch: number[][],
   learningRate: number,
+  maxGradNorm = 1.0,
 ): number {
   if (batch.length === 0) {
     throw new Error("batch must contain at least one sequence");
   }
   if (batch.some((sequence) => sequence.length < 2)) {
     throw new Error("each sequence must contain at least two tokens");
+  }
+  if (!Number.isFinite(maxGradNorm) || maxGradNorm <= 0) {
+    throw new Error("maxGradNorm must be finite and positive");
   }
   const params = parameters(model);
   for (const p of params) p.zeroGrad();
@@ -141,11 +145,21 @@ export function trainStep(
     count += 1;
   }
   (batchLoss as Tensor).backward();
+  let squaredGradNorm = 0;
+  for (const p of params) {
+    for (let i = 0; i < p.grad.length; i += 1) {
+      const meanGradient = (p.grad[i] as number) / count;
+      squaredGradNorm += meanGradient * meanGradient;
+    }
+  }
+  const gradNorm = Math.sqrt(squaredGradNorm);
+  const gradScale =
+    gradNorm > maxGradNorm ? maxGradNorm / gradNorm : 1;
   for (const p of params) {
     for (let i = 0; i < p.data.length; i += 1) {
       p.data[i] =
         (p.data[i] as number) -
-        (learningRate * (p.grad[i] as number)) / count;
+        learningRate * ((p.grad[i] as number) / count) * gradScale;
     }
   }
   return lossTotal / count;

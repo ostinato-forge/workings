@@ -19,6 +19,25 @@ const config = {
   mlpWidth: 32,
 };
 
+function parameterSnapshot(model: ReturnType<typeof createModel>): number[][] {
+  return parameters(model).map((parameter) => [...parameter.data]);
+}
+
+function updateNorm(
+  before: number[][],
+  model: ReturnType<typeof createModel>,
+): number {
+  let squaredNorm = 0;
+  parameters(model).forEach((parameter, parameterIndex) => {
+    const initial = before[parameterIndex] as number[];
+    for (let i = 0; i < parameter.data.length; i += 1) {
+      const update = (parameter.data[i] as number) - (initial[i] as number);
+      squaredNorm += update * update;
+    }
+  });
+  return Math.sqrt(squaredNorm);
+}
+
 test("forward emits one logit row per input token and attention maps", () => {
   const model = createModel(config, mulberry32(64));
   const out = forward(model, [1, 4, 2, 7]);
@@ -49,6 +68,35 @@ test("training reduces loss on a repeated pattern", () => {
     last = trainStep(model, [sequence], 0.05);
   }
   expect(last).toBeLessThan(first * 0.5);
+});
+
+test("trainStep clips the global mean-gradient norm to the cap", () => {
+  const sequence = [1, 2, 3, 1, 2, 3, 1, 2];
+  const cap = 0.01;
+  const unclipped = createModel(config, mulberry32(64));
+  const clipped = createModel(config, mulberry32(64));
+  const unclippedBefore = parameterSnapshot(unclipped);
+  const clippedBefore = parameterSnapshot(clipped);
+
+  trainStep(unclipped, [sequence], 1, Number.MAX_VALUE);
+  trainStep(clipped, [sequence], 1, cap);
+
+  expect(updateNorm(unclippedBefore, unclipped)).toBeGreaterThan(cap);
+  expect(updateNorm(clippedBefore, clipped)).toBeCloseTo(cap, 10);
+});
+
+test("trainStep leaves gradients under the cap unchanged", () => {
+  const sequence = [1, 2, 3, 1, 2, 3, 1, 2];
+  const uncapped = createModel(config, mulberry32(64));
+  const underCap = createModel(config, mulberry32(64));
+  const before = parameterSnapshot(uncapped);
+  const cap = 100;
+
+  trainStep(uncapped, [sequence], 0.05, Number.MAX_VALUE);
+  trainStep(underCap, [sequence], 0.05, cap);
+
+  expect(updateNorm(before, uncapped)).toBeLessThan(cap * 0.05);
+  expect(parameterSnapshot(underCap)).toEqual(parameterSnapshot(uncapped));
 });
 
 test("trainStep rejects an empty batch without changing parameters", () => {

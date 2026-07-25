@@ -13,58 +13,140 @@ const OBJECTS = [
 ];
 const MEET_VERBS = ["met", "helped", "found", "joined"];
 const SECOND_VERBS = ["smiled", "waited", "nodded", "paused", "laughed"];
+const PREFIXES = [
+  { text: "", wordCount: 0 },
+  { text: "yesterday", wordCount: 1 },
+  { text: "at dawn", wordCount: 2 },
+  { text: "after the rain", wordCount: 3 },
+] as const;
+const HELD_OUT_PER_KIND = 80;
 
-type Corpus = { train: string[]; heldOut: string[] };
+export type DistractorKind = "opposite" | "same" | "none";
 
-function line(
+export type CorefItem = {
+  text: string;
+  referentIndex: number;
+  distractorIndex: number | null;
+  distractorKind: DistractorKind;
+};
+
+type Corpus = { train: CorefItem[]; heldOut: CorefItem[] };
+
+function item(
+  prefix: (typeof PREFIXES)[number],
   subject: string,
   distractor: string | null,
+  distractorKind: DistractorKind,
   place: string,
   object: string,
   meetVerb: string,
   secondVerb: string,
   pronoun: string,
-): string {
+): CorefItem {
+  const prefixText = prefix.text.length === 0 ? "" : `${prefix.text} `;
   if (distractor === null) {
-    return `${subject} carried the ${object} to the ${place} . ${pronoun} ${secondVerb} .`;
+    return {
+      text: `${prefixText}${subject} carried the ${object} to the ${place} . ${pronoun} ${secondVerb} .`,
+      referentIndex: prefix.wordCount,
+      distractorIndex: null,
+      distractorKind,
+    };
   }
-  return `${subject} ${meetVerb} ${distractor} at the ${place} . ${pronoun} ${secondVerb} .`;
+  return {
+    text: `${prefixText}${subject} ${meetVerb} ${distractor} at the ${place} . ${pronoun} ${secondVerb} .`,
+    referentIndex: prefix.wordCount,
+    distractorIndex: prefix.wordCount + 2,
+    distractorKind,
+  };
 }
 
 export function generateCorpus(seed: number): Corpus {
   const rng = mulberry32(seed);
-  const all: string[] = [];
   const names = [
     ...FEMALE_NAMES.map((n) => ({ name: n, pronoun: "she" })),
     ...MALE_NAMES.map((n) => ({ name: n, pronoun: "he" })),
   ];
+  const distractorKinds = shuffled(rng, [
+    ...Array.from({ length: 600 }, () => "opposite" as const),
+    ...Array.from({ length: 600 }, () => "same" as const),
+  ]);
+  const all: CorefItem[] = [];
+  let distractorKindIndex = 0;
   for (const subject of names) {
     const opposite =
       subject.pronoun === "she" ? MALE_NAMES : FEMALE_NAMES;
+    const same = (
+      subject.pronoun === "she" ? FEMALE_NAMES : MALE_NAMES
+    ).filter((name) => name !== subject.name);
     for (const place of PLACES) {
       for (const object of OBJECTS) {
-        const meetVerb = MEET_VERBS[randInt(rng, MEET_VERBS.length)] as string;
-        const secondVerb = SECOND_VERBS[
-          randInt(rng, SECOND_VERBS.length)
-        ] as string;
-        // solo line: one actor only
         all.push(
-          line(subject.name, null, place, object, meetVerb, secondVerb, subject.pronoun),
+          item(
+            PREFIXES[randInt(rng, PREFIXES.length)] as (typeof PREFIXES)[number],
+            subject.name,
+            null,
+            "none",
+            place,
+            object,
+            MEET_VERBS[randInt(rng, MEET_VERBS.length)] as string,
+            SECOND_VERBS[randInt(rng, SECOND_VERBS.length)] as string,
+            subject.pronoun,
+          ),
         );
-        // distractor line: opposite-gender second actor; pronoun still
-        // refers to the subject, so gender disambiguates the referent
-        const distractor = opposite[randInt(rng, opposite.length)] as string;
+        const distractorKind = distractorKinds[
+          distractorKindIndex
+        ] as Exclude<DistractorKind, "none">;
+        distractorKindIndex += 1;
+        const distractorPool =
+          distractorKind === "opposite" ? opposite : same;
         all.push(
-          line(subject.name, distractor, place, object, meetVerb, secondVerb, subject.pronoun),
+          item(
+            PREFIXES[randInt(rng, PREFIXES.length)] as (typeof PREFIXES)[number],
+            subject.name,
+            distractorPool[randInt(rng, distractorPool.length)] as string,
+            distractorKind,
+            place,
+            object,
+            MEET_VERBS[randInt(rng, MEET_VERBS.length)] as string,
+            SECOND_VERBS[randInt(rng, SECOND_VERBS.length)] as string,
+            subject.pronoun,
+          ),
         );
       }
     }
   }
-  const deduped = [...new Set(all)];
-  const mixed = shuffled(rng, deduped);
-  const heldOutCount = Math.max(200, Math.floor(mixed.length * 0.1));
+
+  const uniqueByText = new Map<string, CorefItem>();
+  for (const generated of all) {
+    if (!uniqueByText.has(generated.text)) {
+      uniqueByText.set(generated.text, generated);
+    }
+  }
+  const byKind: Record<DistractorKind, CorefItem[]> = {
+    opposite: [],
+    same: [],
+    none: [],
+  };
+  for (const generated of uniqueByText.values()) {
+    byKind[generated.distractorKind].push(generated);
+  }
+  const partitions = {
+    opposite: shuffled(rng, byKind.opposite),
+    same: shuffled(rng, byKind.same),
+    none: shuffled(rng, byKind.none),
+  };
+  const heldOut = shuffled(rng, [
+    ...partitions.opposite.slice(0, HELD_OUT_PER_KIND),
+    ...partitions.same.slice(0, HELD_OUT_PER_KIND),
+    ...partitions.none.slice(0, HELD_OUT_PER_KIND),
+  ]);
+  const train = shuffled(rng, [
+    ...partitions.opposite.slice(HELD_OUT_PER_KIND),
+    ...partitions.same.slice(HELD_OUT_PER_KIND),
+    ...partitions.none.slice(HELD_OUT_PER_KIND),
+  ]);
   return {
-    heldOut: mixed.slice(0, heldOutCount),
-    train: mixed.slice(heldOutCount),
+    heldOut,
+    train,
   };
 }

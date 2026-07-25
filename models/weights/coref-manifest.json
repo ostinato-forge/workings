@@ -2,26 +2,102 @@
   "seed": 64,
   "nodeVersion": "v22.22.2",
   "arch": "x64",
-  "steps": 3000,
+  "steps": 6000,
   "batch": 16,
   "learningRate": 0.5,
+  "maxGradNorm": 1,
   "config": {
-    "vocabSize": 48,
+    "vocabSize": 52,
     "context": 24,
-    "dModel": 32,
-    "layers": 2,
-    "heads": 2,
-    "dHead": 16,
+    "dModel": 48,
+    "layers": 1,
+    "heads": 1,
+    "dHead": 48,
     "mlpWidth": 128
   },
-  "vocabSize": 48,
-  "weightsHash": "20aa363de68cb2abed69938af16cb0d71c84d61be4ba41f7a4842deaa5ce94eb",
+  "vocabSize": 52,
+  "weightsHash": "2097afb6b085cf1d65538b5338e00de1041ab6001dea42174c6e2fdf683db655",
   "metrics": {
-    "heldOutLines": 235,
+    "heldOutLines": 240,
     "pronounAccuracy": 1,
-    "distractorLines": 106,
-    "attentionHitRate": 1,
-    "attentionMeanWeight": 0.7086750547469157,
-    "finalLoss": 0.7905181489935734
+    "distractorLines": 160,
+    "selectedHead": {
+      "layer": 0,
+      "head": 0
+    },
+    "attentionHitRate": 0.64375,
+    "attentionMeanWeight": 0.4896032333049571,
+    "attentionByReferentPosition": {
+      "0": {
+        "count": 53,
+        "hits": 27,
+        "hitRate": 0.5094339622641509
+      },
+      "1": {
+        "count": 33,
+        "hits": 33,
+        "hitRate": 1
+      },
+      "2": {
+        "count": 35,
+        "hits": 16,
+        "hitRate": 0.45714285714285713
+      },
+      "3": {
+        "count": 39,
+        "hits": 27,
+        "hitRate": 0.6923076923076923
+      }
+    },
+    "attentionByDistractorKind": {
+      "opposite": {
+        "count": 80,
+        "hits": 42,
+        "hitRate": 0.525
+      },
+      "same": {
+        "count": 80,
+        "hits": 61,
+        "hitRate": 0.7625
+      }
+    },
+    "marginRate": 0.825,
+    "marginByReferentPosition": {
+      "0": {
+        "count": 53,
+        "wins": 37,
+        "winRate": 0.6981132075471698
+      },
+      "1": {
+        "count": 33,
+        "wins": 33,
+        "winRate": 1
+      },
+      "2": {
+        "count": 35,
+        "wins": 35,
+        "winRate": 1
+      },
+      "3": {
+        "count": 39,
+        "wins": 27,
+        "winRate": 0.6923076923076923
+      }
+    },
+    "marginByDistractorKind": {
+      "opposite": {
+        "count": 80,
+        "wins": 52,
+        "winRate": 0.65
+      },
+      "same": {
+        "count": 80,
+        "wins": 80,
+        "winRate": 1
+      }
+    },
+    "flipItems": 80,
+    "flipRate": 1,
+    "ablationDrop": 0.44999999999999996
   }
 }
