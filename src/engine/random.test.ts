@@ -1,5 +1,5 @@
-import { expect, test } from "vitest";
-import { mulberry32, randInt, shuffled } from "./random";
+import { describe, expect, test } from "vitest";
+import { drawIndex, mulberry32, randInt, shuffled } from "./random";
 
 test("same seed gives identical streams", () => {
   const a = mulberry32(64);
@@ -71,4 +71,33 @@ test("shuffled is deterministic and preserves elements", () => {
   expect(s1).toEqual(s2);
   expect([...s1].sort()).toEqual([...items].sort());
   expect(items).toEqual(["a", "b", "c", "d", "e"]);
+});
+
+describe("drawIndex", () => {
+  test("walks the cumulative distribution with one draw", () => {
+    expect(drawIndex(() => 0.6, [0.5, 0.3, 0.2])).toBe(1);
+    expect(drawIndex(() => 0.95, [0.5, 0.3, 0.2])).toBe(2);
+    expect(drawIndex(() => 0.1, [0.5, 0.3, 0.2])).toBe(0);
+  });
+
+  test("never lands on a zero-probability entry", () => {
+    expect(drawIndex(() => 0, [0, 1])).toBe(1);
+    for (let seed = 1; seed <= 200; seed += 1) {
+      expect(drawIndex(mulberry32(seed), [0, 0.5, 0, 0.5])).not.toBe(0);
+    }
+  });
+
+  test("returns the last index on floating-point residue", () => {
+    expect(drawIndex(() => 0.999999999, [0.3, 0.3, 0.3])).toBe(2);
+  });
+
+  test("is roughly balanced over a fair distribution", () => {
+    const rng = mulberry32(11);
+    let zeros = 0;
+    for (let i = 0; i < 1000; i += 1) {
+      if (drawIndex(rng, [0.5, 0.5]) === 0) zeros += 1;
+    }
+    expect(zeros).toBeGreaterThan(400);
+    expect(zeros).toBeLessThan(600);
+  });
 });
