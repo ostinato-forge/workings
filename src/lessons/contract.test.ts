@@ -1,71 +1,80 @@
 import { describe, expect, test } from "vitest";
 import { runTokenMachine } from "../engine/token-machine";
+import { shellCopyStrings } from "../shell/copy";
 import { lessons } from "./index";
 import { lintCopy } from "./lint";
+import type { PredictBeat } from "./types";
 
 describe.each(lessons.map((lesson) => [lesson.id, lesson] as const))(
   "lesson contract: %s",
   (_id, lesson) => {
-    const records = lesson.cases.map((lessonCase) => {
-      const result = runTokenMachine(lesson.model, lesson.tokenizer, lessonCase.config);
-      if (!result.ok) {
-        throw new Error(
-          `case ${lessonCase.id} rejected its own config: ${result.problem.what}`,
-        );
-      }
-      return result.record;
+    const predictBeats = lesson.beats.filter(
+      (beat): beat is PredictBeat => beat.kind === "predict",
+    );
+
+    const recordsOf = (beat: PredictBeat) =>
+      beat.configs.map((config) => {
+        const result = runTokenMachine(lesson.model, lesson.tokenizer, config);
+        if (!result.ok) {
+          throw new Error(
+            `beat ${beat.id} rejected its own config: ${result.problem.what}`,
+          );
+        }
+        return result.record;
+      });
+
+    test("the lesson has at least two predict beats and one recap", () => {
+      expect(predictBeats.length).toBeGreaterThanOrEqual(2);
+      expect(lesson.beats.some((b) => b.kind === "recap")).toBe(true);
     });
 
-    test("every case config runs clean on the lesson's own model", () => {
-      expect(records).toHaveLength(2);
-    });
-
-    test("the derived correct option exists and is unique in the options", () => {
-      const ids = lesson.options.map((o) => o.id);
+    test("beat ids are unique", () => {
+      const ids = lesson.beats.map((b) => b.id);
       expect(new Set(ids).size).toBe(ids.length);
-      for (const record of records) {
-        const derived = lesson.deriveCorrectOption(record);
+    });
+
+    test("every predict beat derives a valid, unique option", () => {
+      for (const beat of predictBeats) {
+        const ids = beat.options.map((o) => o.id);
+        expect(new Set(ids).size).toBe(ids.length);
+        const derived = beat.deriveCorrectOption(recordsOf(beat));
         expect(ids).toContain(derived);
       }
     });
 
-    test("the second case changes the outcome", () => {
-      const first = lesson.deriveCorrectOption(records[0] as (typeof records)[0]);
-      const second = lesson.deriveCorrectOption(records[1] as (typeof records)[0]);
-      expect(first).not.toBe(second);
+    test("the predict beats do not all share one derived answer", () => {
+      const derived = predictBeats.map((beat) =>
+        beat.deriveCorrectOption(recordsOf(beat)),
+      );
+      expect(new Set(derived).size).toBeGreaterThan(1);
     });
 
-    test("runs are byte-identical on repeat", () => {
-      for (const lessonCase of lesson.cases) {
-        const again = runTokenMachine(
-          lesson.model,
-          lesson.tokenizer,
-          lessonCase.config,
-        );
-        expect(again.ok).toBe(true);
-        if (!again.ok) return;
-        const index = lesson.cases.indexOf(lessonCase);
-        expect(JSON.stringify(again.record)).toBe(
-          JSON.stringify(records[index]),
-        );
+    test("every run is byte-identical on repeat", () => {
+      for (const beat of predictBeats) {
+        const first = recordsOf(beat);
+        const second = recordsOf(beat);
+        expect(JSON.stringify(second)).toBe(JSON.stringify(first));
       }
     });
 
-    test("guide cards and case ids are unique", () => {
-      const cardIds = lesson.guideCards.map((c) => c.id);
-      expect(new Set(cardIds).size).toBe(cardIds.length);
-      const caseIds = lesson.cases.map((c) => c.id);
-      expect(new Set(caseIds).size).toBe(caseIds.length);
-    });
-
     test("every string of lesson copy passes the neutrality lint", () => {
-      const copy = [
-        lesson.title,
-        ...lesson.guideCards.flatMap((c) => [c.title, c.body]),
-        ...lesson.options.map((o) => o.label),
-        ...lesson.cases.flatMap((c) => [c.setup, c.question]),
-      ];
+      const copy: string[] = [lesson.title];
+      for (const beat of lesson.beats) {
+        if (beat.kind === "teach" || beat.kind === "recap") {
+          copy.push(beat.title, beat.body);
+        } else if (beat.kind === "predict") {
+          copy.push(beat.setup, beat.question, ...beat.options.map((o) => o.label));
+        } else {
+          copy.push(beat.intro);
+        }
+      }
       expect(lintCopy(copy)).toEqual([]);
     });
   },
 );
+
+describe("shell copy", () => {
+  test("every shell string passes the neutrality lint", () => {
+    expect(lintCopy(shellCopyStrings())).toEqual([]);
+  });
+});
