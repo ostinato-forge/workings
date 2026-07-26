@@ -1,53 +1,182 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   runTokenMachine,
   type TokenMachineRecord,
 } from "../engine/token-machine";
 import type { SamplingConfig } from "../engine/sampling";
 import type { EngineProblem } from "../engine/run-record";
-import type {
-  PredictBeat,
-  TokenMachineLesson,
-} from "../lessons/types";
+import type { PlayBeat, TokenMachineLesson } from "../lessons/types";
 import { DialControls } from "./DialControls";
+import { OddsBoard } from "./OddsBoard";
 import { ProbabilityBars } from "./ProbabilityBars";
+import { RunRail } from "./RunRail";
+import { SentenceTrack } from "./SentenceTrack";
 
-function Evidence({
+const STEP_MS = 650;
+
+function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function PlaySurface({
+  lesson,
   beat,
-  records,
+  onSettled,
 }: {
-  beat: PredictBeat;
-  records: TokenMachineRecord[];
+  lesson: TokenMachineLesson;
+  beat: PlayBeat;
+  onSettled: (records: TokenMachineRecord[]) => void;
 }) {
-  const first = records[0];
-  if (first === undefined) return <p>The run records are missing.</p>;
-  const firstStep = first.steps[0];
-  if (firstStep === undefined) return <p>The run produced no steps.</p>;
+  const [sampling, setSampling] = useState<SamplingConfig>({
+    temperature: 1,
+    ...beat.requires.locked,
+  });
+  const [betChoice, setBetChoice] = useState<string | null>(null);
+  const [records, setRecords] = useState<TokenMachineRecord[]>([]);
+  const [replayIndex, setReplayIndex] = useState<number | null>(null);
+  const [revealedSteps, setRevealedSteps] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const active =
+    replayIndex === null ? records[records.length - 1] : records[replayIndex];
+  const satisfied = beat.requires.satisfied(sampling);
+  const settled = records.length >= beat.minRuns;
+  const seedsLeft = records.length < beat.seeds.length;
+
+  useEffect(() => {
+    return () => {
+      if (timer.current !== null) clearInterval(timer.current);
+    };
+  }, []);
+
+  const startReplay = (record: TokenMachineRecord): void => {
+    if (timer.current !== null) clearInterval(timer.current);
+    if (reducedMotion()) {
+      setRevealedSteps(record.steps.length);
+      return;
+    }
+    setRevealedSteps(0);
+    timer.current = setInterval(() => {
+      setRevealedSteps((prev) => {
+        if (prev + 1 >= record.steps.length && timer.current !== null) {
+          clearInterval(timer.current);
+          timer.current = null;
+        }
+        return Math.min(prev + 1, record.steps.length);
+      });
+    }, STEP_MS);
+  };
+
+  const runOnce = (): void => {
+    const seed = beat.seeds[records.length];
+    if (seed === undefined) return;
+    const result = runTokenMachine(lesson.model, lesson.tokenizer, {
+      prompt: beat.prompt,
+      maxNewTokens: beat.maxNewTokens,
+      sampling,
+      seed,
+    });
+    if (!result.ok) {
+      throw new Error(`play beat rejected its run: ${result.problem.what}`);
+    }
+    const next = [...records, result.record];
+    setRecords(next);
+    setReplayIndex(null);
+    startReplay(result.record);
+    if (next.length >= beat.minRuns) onSettled(next);
+  };
+
   return (
     <div>
-      {beat.showEvidence === "all" ? (
-        <div className="panel">
-          {records.map((record, index) => {
-            const step = record.steps[0];
-            return step === undefined ? null : (
-              <p key={record.seed}>
-                Run {index + 1} (seed {record.seed}): picked{" "}
-                {step.event.sampledToken}.
-              </p>
-            );
-          })}
-        </div>
-      ) : null}
-      <p>
-        Prompt: {first.config.prompt}. Sampled next word:{" "}
-        {firstStep.event.sampledToken}.{" "}
-        {firstStep.event.candidates.filter((c) => c.survived).length} of{" "}
-        {firstStep.event.candidates.length} words could win the draw.
+      <p className="panel">{beat.goal}</p>
+      <p className={satisfied ? "requirement" : "requirement unmet"}>
+        {beat.requires.description}
+        {satisfied ? "" : " Adjust the dials to continue."}
       </p>
-      <ProbabilityBars
-        candidates={firstStep.event.candidates}
-        sampledId={firstStep.event.sampledId}
+      <DialControls
+        value={sampling}
+        disabled={false}
+        lockedKeys={
+          Object.keys(beat.requires.locked) as (
+            | "temperature"
+            | "topK"
+            | "topP"
+          )[]
+        }
+        onChange={setSampling}
       />
+      <fieldset>
+        <legend>{beat.bet.question}</legend>
+        {beat.bet.options.map((option) => (
+          <label key={option.id} className="option-row">
+            <input
+              type="radio"
+              name={`bet-${beat.id}`}
+              checked={betChoice === option.id}
+              disabled={records.length > 0}
+              onChange={() => setBetChoice(option.id)}
+            />{" "}
+            {option.label}
+          </label>
+        ))}
+      </fieldset>
+      <div className="deck">
+        <button
+          className="start-button"
+          disabled={betChoice === null || !satisfied || !seedsLeft}
+          onClick={runOnce}
+        >
+          Start
+          <span className="start-sublabel">
+            {records.length === 0
+              ? "lock your bet and run"
+              : `run again (${records.length} of ${beat.minRuns} needed)`}
+          </span>
+        </button>
+      </div>
+      <div className="playfield">
+        <div>
+          {active !== undefined ? (
+            <div>
+              <SentenceTrack record={active} revealedSteps={revealedSteps} />
+              <OddsBoard
+                record={active}
+                stepIndex={Math.max(0, Math.min(revealedSteps, active.steps.length) - 1)}
+              />
+            </div>
+          ) : (
+            <p className="evidence-meta">
+              The machine is idle. Lock your bet and press START.
+            </p>
+          )}
+        </div>
+        <RunRail
+          records={records}
+          selected={replayIndex}
+          onSelect={(index) => {
+            const record = records[index];
+            if (record === undefined) return;
+            setReplayIndex(index);
+            startReplay(record);
+          }}
+        />
+      </div>
+      {settled && betChoice !== null ? (
+        <p aria-live="polite" className="verdict">
+          {beat.bet.deriveCorrectOption(records) === betChoice
+            ? "Your bet matches what your runs show."
+            : "Your bet does not match what your runs show."}{" "}
+          {
+            beat.bet.options.find(
+              (o) => o.id === beat.bet.deriveCorrectOption(records),
+            )?.label
+          }{" "}
+          is what happened.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -62,8 +191,7 @@ export function LessonPlayer({
   onComplete: () => void;
 }) {
   const [beatIndex, setBeatIndex] = useState(0);
-  const [selection, setSelection] = useState<string | null>(null);
-  const [records, setRecords] = useState<TokenMachineRecord[] | null>(null);
+  const [settledBeats, setSettledBeats] = useState<Record<string, boolean>>({});
   const [completed, setCompleted] = useState(false);
   const [freeSampling, setFreeSampling] = useState<SamplingConfig>({
     temperature: 1,
@@ -74,8 +202,6 @@ export function LessonPlayer({
   const beat = lesson.beats[beatIndex];
 
   const advance = (): void => {
-    setSelection(null);
-    setRecords(null);
     const next = beatIndex + 1;
     setBeatIndex(next);
     const upcoming = lesson.beats[next];
@@ -83,22 +209,6 @@ export function LessonPlayer({
       setCompleted(true);
       onComplete();
     }
-  };
-
-  const runPredict = (predict: PredictBeat): void => {
-    const results = predict.configs.map((config) =>
-      runTokenMachine(lesson.model, lesson.tokenizer, config),
-    );
-    const failed = results.find((r) => !r.ok);
-    if (failed !== undefined && !failed.ok) {
-      throw new Error(`contract-tested beat failed: ${failed.problem.what}`);
-    }
-    setRecords(
-      results.map((r) => {
-        if (!r.ok) throw new Error("unreachable");
-        return r.record;
-      }),
-    );
   };
 
   const runFree = (): void => {
@@ -139,53 +249,19 @@ export function LessonPlayer({
         </div>
       ) : null}
 
-      {beat.kind === "predict" ? (
+      {beat.kind === "play" ? (
         <div className="phase-enter">
-          <p className="panel">{beat.setup}</p>
-          {records === null ? (
-            <div>
-              <fieldset>
-                <legend>{beat.question}</legend>
-                {beat.options.map((option) => (
-                  <label key={option.id} className="option-row">
-                    <input
-                      type="radio"
-                      name={`prediction-${beat.id}`}
-                      checked={selection === option.id}
-                      onChange={() => setSelection(option.id)}
-                    />{" "}
-                    {option.label}
-                  </label>
-                ))}
-              </fieldset>
-              <div className="deck">
-                <button
-                  className="start-button"
-                  disabled={selection === null}
-                  onClick={() => runPredict(beat)}
-                >
-                  Start
-                  <span className="start-sublabel">lock your guess and run</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p aria-live="polite" className="verdict">
-                {beat.deriveCorrectOption(records) === selection
-                  ? "Your guess matches what happened."
-                  : "Your guess does not match what happened."}{" "}
-                {
-                  beat.options.find(
-                    (o) => o.id === beat.deriveCorrectOption(records),
-                  )?.label
-                }{" "}
-                is what the run shows.
-              </p>
-              <Evidence beat={beat} records={records} />
-              <button onClick={advance}>Continue</button>
-            </div>
-          )}
+          <PlaySurface
+            key={beat.id}
+            lesson={lesson}
+            beat={beat}
+            onSettled={() =>
+              setSettledBeats((prev) => ({ ...prev, [beat.id]: true }))
+            }
+          />
+          {settledBeats[beat.id] === true ? (
+            <button onClick={advance}>Continue</button>
+          ) : null}
         </div>
       ) : null}
 

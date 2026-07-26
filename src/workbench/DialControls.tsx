@@ -3,12 +3,15 @@ import type { SamplingConfig } from "../engine/sampling";
 export function DialControls({
   value,
   disabled,
+  lockedKeys,
   onChange,
 }: {
   value: SamplingConfig;
   disabled: boolean;
+  lockedKeys?: ("temperature" | "topK" | "topP")[];
   onChange: (next: SamplingConfig) => void;
 }) {
+  const locked = new Set(lockedKeys ?? []);
   return (
     <fieldset disabled={disabled} className="deck">
       <legend>Sampling dials</legend>
@@ -20,6 +23,7 @@ export function DialControls({
           max="4"
           step="0.1"
           value={value.temperature}
+          disabled={disabled || locked.has("temperature")}
           onChange={(e) =>
             onChange({ ...value, temperature: Number(e.target.value) })
           }
@@ -33,6 +37,7 @@ export function DialControls({
           step="1"
           value={value.topK ?? ""}
           placeholder="off"
+          disabled={disabled || locked.has("topK")}
           onChange={(e) => {
             const raw = e.target.value;
             const next = { ...value };
@@ -54,6 +59,7 @@ export function DialControls({
           step="0.05"
           value={value.topP ?? ""}
           placeholder="off"
+          disabled={disabled || locked.has("topP")}
           onChange={(e) => {
             const raw = e.target.value;
             const next = { ...value };
