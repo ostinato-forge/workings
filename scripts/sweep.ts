@@ -53,35 +53,36 @@ async function keyboardPlay(page: Page): Promise<void> {
   if ((await page.title()) !== "Workings") throw new Error("wrong page title");
   await axeCheck(page, "stage list");
 
-  await pressUntilFocused(page, "link", /Sampling: the dials/, 10);
+  await pressUntilFocused(page, "link", /Why the same question/, 10);
   await page.keyboard.press("Enter");
-  await page.getByRole("heading", { name: /Sampling: the dials/ }).waitFor();
-  await axeCheck(page, "reading phase");
+  await page.getByRole("heading", { name: /Why the same question/ }).waitFor();
+  await axeCheck(page, "lesson start");
 
-  await pressUntilFocused(page, "button", /Start the first case/, 10);
-  await page.keyboard.press("Enter");
-
-  for (const expected of ["Case 1", "Case 2"]) {
-    await page.getByRole("heading", { name: expected }).waitFor();
+  // Walk beats until free play: teach/recap beats show Continue; predict
+  // beats need a committed guess, START, evidence, then Continue.
+  for (let guard = 0; guard < 20; guard += 1) {
+    if (await page.getByRole("heading", { name: "Free play" }).isVisible().catch(() => false)) {
+      break;
+    }
     const start = page.getByRole("button", { name: /Start lock your guess and run/i });
-    if (await start.isEnabled()) {
-      throw new Error(`${expected}: START must stay locked before a guess`);
+    if (await start.isVisible().catch(() => false)) {
+      if (await start.isEnabled()) {
+        throw new Error("START must stay locked before a guess");
+      }
+      await pressUntilFocused(page, "radio", /.*/, 15);
+      await page.keyboard.press("Space");
+      if (!(await start.isEnabled())) {
+        throw new Error("committing a guess must unlock START");
+      }
+      await axeCheck(page, "predict beat");
+      await pressUntilFocused(page, "button", /Start lock your guess and run/i, 15);
+      await page.keyboard.press("Enter");
+      await page
+        .getByRole("list", { name: "candidate tokens by probability" })
+        .waitFor();
+      await axeCheck(page, "evidence");
     }
-    await pressUntilFocused(page, "radio", /.*/, 15);
-    await page.keyboard.press("Space");
-    if (!(await start.isEnabled())) {
-      throw new Error(`${expected}: committing a guess must unlock START`);
-    }
-    await axeCheck(page, `${expected} predicting`);
-    await pressUntilFocused(page, "button", /Start lock your guess and run/i, 15);
-    await page.keyboard.press("Enter");
-    await page
-      .getByRole("list", { name: "candidate tokens by probability" })
-      .waitFor();
-    await axeCheck(page, `${expected} evidence`);
-    const nextName =
-      expected === "Case 1" ? /On to the second case/ : /Finish the lesson/;
-    await pressUntilFocused(page, "button", nextName, 15);
+    await pressUntilFocused(page, "button", /Continue/, 15);
     await page.keyboard.press("Enter");
   }
 
@@ -105,8 +106,8 @@ async function viewportCheck(
 ): Promise<void> {
   await page.setViewportSize({ width, height });
   await page.goto(`${URL}#/lesson/sampling-dials`);
-  await page.getByRole("heading", { name: /Sampling: the dials/ }).waitFor();
-  const button = page.getByRole("button", { name: /Start the first case/ });
+  await page.getByRole("heading", { name: /Why the same question/ }).waitFor();
+  const button = page.getByRole("button", { name: /Continue/ }).first();
   const box = await button.boundingBox();
   if (box === null || box.height < 44) {
     throw new Error(`${width}x${height}: primary control under 44px`);
@@ -122,7 +123,9 @@ async function viewportCheck(
 async function reducedMotionCheck(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`${URL}#/lesson/sampling-dials`);
-  await page.getByRole("button", { name: /Start the first case/ }).click();
+  await page.getByRole("heading", { name: /Why the same question/ }).waitFor();
+  await page.getByRole("button", { name: /Continue/ }).click();
+  await page.getByRole("button", { name: /Continue/ }).click();
   await page.getByRole("radio").first().check();
   await page
     .getByRole("button", { name: /Start lock your guess and run/i })
