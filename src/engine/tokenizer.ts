@@ -1,8 +1,14 @@
-export type Tokenizer = {
+export type TokenizerLike = {
   vocab: string[];
+  tryEncode: (
+    text: string,
+  ) => { ok: true; ids: number[] } | { ok: false; unknown: string[] };
+  decode: (ids: number[]) => string;
+};
+
+export type Tokenizer = TokenizerLike & {
   toId: (word: string) => number;
   encode: (text: string) => number[];
-  decode: (ids: number[]) => string;
 };
 
 export function buildTokenizer(lines: string[]): Tokenizer {
@@ -19,9 +25,18 @@ export function buildTokenizer(lines: string[]): Tokenizer {
     if (id === undefined) throw new Error(`not in vocabulary: ${word}`);
     return id;
   };
+  const tryEncode = (
+    text: string,
+  ): { ok: true; ids: number[] } | { ok: false; unknown: string[] } => {
+    const words = text.split(" ").filter((w) => w.length > 0);
+    const unknown = [...new Set(words.filter((w) => !ids.has(w)))];
+    if (unknown.length > 0) return { ok: false, unknown };
+    return { ok: true, ids: words.map(toId) };
+  };
   return {
     vocab,
     toId,
+    tryEncode,
     encode: (text) =>
       text
         .split(" ")
