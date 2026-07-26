@@ -58,31 +58,45 @@ async function keyboardPlay(page: Page): Promise<void> {
   await page.getByRole("heading", { name: /Why the same question/ }).waitFor();
   await axeCheck(page, "lesson start");
 
-  // Walk beats until free play: teach/recap beats show Continue; predict
-  // beats need a committed guess, START, evidence, then Continue.
-  for (let guard = 0; guard < 20; guard += 1) {
+  for (let guard = 0; guard < 40; guard += 1) {
     if (await page.getByRole("heading", { name: "Free play" }).isVisible().catch(() => false)) {
       break;
     }
-    const start = page.getByRole("button", { name: /Start lock your guess and run/i });
+    const start = page.getByRole("button", { name: /Start lock your bet and run|Start run again/i });
     if (await start.isVisible().catch(() => false)) {
-      if (await start.isEnabled()) {
-        throw new Error("START must stay locked before a guess");
+      // Play beat. Satisfy the dial requirement when unmet.
+      const unmet = await page.locator(".requirement.unmet").isVisible().catch(() => false);
+      if (unmet) {
+        const requirement = await page.locator(".requirement").innerText();
+        const temperature = page.getByLabel(/temperature/);
+        // Number inputs are filled by accessible label because key-event typing
+        // is flaky across engines. Navigation, bets, START, and Continue remain
+        // keyboard-driven.
+        if (/temperature to exactly 0|temperature dial down to 0/i.test(requirement)) {
+          await temperature.fill("0");
+        } else if (/top-k at 3/i.test(requirement)) {
+          await temperature.fill("1");
+          await page.getByLabel(/top-k/).fill("3");
+        }
       }
-      await pressUntilFocused(page, "radio", /.*/, 15);
-      await page.keyboard.press("Space");
-      if (!(await start.isEnabled())) {
-        throw new Error("committing a guess must unlock START");
+      if (await page.getByRole("radio").first().isEnabled().catch(() => false)) {
+        await pressUntilFocused(page, "radio", /.*/, 20);
+        await page.keyboard.press("Space");
       }
-      await axeCheck(page, "predict beat");
-      await pressUntilFocused(page, "button", /Start lock your guess and run/i, 15);
-      await page.keyboard.press("Enter");
+      await axeCheck(page, "play beat");
+      for (let runs = 0; runs < 6; runs += 1) {
+        const continueButton = page.getByRole("button", { name: /^Continue$/ });
+        if (await continueButton.isVisible().catch(() => false)) break;
+        await pressUntilFocused(page, "button", /Start/, 25);
+        await page.keyboard.press("Enter");
+        await page.waitForTimeout(200);
+      }
       await page
-        .getByRole("list", { name: "candidate tokens by probability" })
+        .getByRole("list", { name: "your runs so far" })
         .waitFor();
-      await axeCheck(page, "evidence");
+      await axeCheck(page, "playfield");
     }
-    await pressUntilFocused(page, "button", /Continue/, 15);
+    await pressUntilFocused(page, "button", /^Continue$/, 25);
     await page.keyboard.press("Enter");
   }
 
@@ -105,9 +119,15 @@ async function viewportCheck(
   height: number,
 ): Promise<void> {
   await page.setViewportSize({ width, height });
-  await page.goto(`${URL}#/lesson/sampling-dials`);
+  await page.goto(URL);
+  await page.getByRole("link", { name: /Why the same question/ }).click();
   await page.getByRole("heading", { name: /Why the same question/ }).waitFor();
-  const button = page.getByRole("button", { name: /Continue/ }).first();
+  await page.getByRole("button", { name: /^Continue$/ }).click();
+  await page.getByRole("button", { name: /^Continue$/ }).click();
+  await page
+    .getByText(/Run the machine three times and watch the endings pile up/)
+    .waitFor();
+  const button = page.getByRole("button", { name: /Start/ }).first();
   const box = await button.boundingBox();
   if (box === null || box.height < 44) {
     throw new Error(`${width}x${height}: primary control under 44px`);
@@ -122,16 +142,18 @@ async function viewportCheck(
 
 async function reducedMotionCheck(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto(`${URL}#/lesson/sampling-dials`);
+  await page.goto(URL);
+  await page.getByRole("link", { name: /Why the same question/ }).click();
   await page.getByRole("heading", { name: /Why the same question/ }).waitFor();
   await page.getByRole("button", { name: /Continue/ }).click();
   await page.getByRole("button", { name: /Continue/ }).click();
   await page.getByRole("radio").first().check();
   await page
-    .getByRole("button", { name: /Start lock your guess and run/i })
+    .getByRole("button", { name: /Start lock your bet and run/i })
     .click();
   await page
-    .getByRole("list", { name: "candidate tokens by probability" })
+    .getByRole("list", { name: "your runs so far" })
+    .getByRole("button", { name: /Run 1/ })
     .waitFor();
   await page.emulateMedia({ reducedMotion: null });
 }
