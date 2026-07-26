@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Option 3: VECTOR (wireframe monitor, trackball deck)</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #05070c; --metal-edge: #3c4250;
+    --beam: #d7f4ff; --beam-soft: rgba(160,220,245,.75); --beam-dim: #3a5560;
+    --ink: #d7f4ff;
+    --arcade: "Press Start 2P", monospace; --mono: "IBM Plex Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:
+      radial-gradient(ellipse at 50% 80%, rgba(30,70,90,.12), transparent 50%), var(--void);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 24px 0 40px; font-family: var(--mono); }
+  .shell { width: 940px; max-width: 96vw; filter: drop-shadow(0 30px 80px rgba(0,0,0,.9)); }
+  .marquee { background: linear-gradient(180deg, #1b222e, #0f131c);
+    border: 4px solid var(--metal-edge); border-bottom: none; border-radius: 14px 14px 0 0;
+    padding: 20px 26px 16px; position: relative; }
+  .screw { position: absolute; width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #667, #223 70%); top: 10px; }
+  .screw.l { left: 10px; } .screw.r { right: 10px; }
+  .marquee h1 { font-family: var(--arcade); font-size: 26px; letter-spacing: 6px;
+    color: #2e3d4d; transition: all 1s ease; }
+  .on .marquee h1 { color: var(--beam);
+    text-shadow: 0 0 12px rgba(215,244,255,.6), 0 0 44px rgba(160,220,245,.25); }
+  .marquee .tag { font-family: var(--arcade); font-size: 8px; letter-spacing: 2px;
+    color: #33404f; margin-top: 10px; transition: all 1s ease; }
+  .on .marquee .tag { color: #8fb8cc; }
+  .led { position: absolute; right: 24px; top: 24px; display: flex; align-items: center;
+    gap: 8px; font-family: var(--arcade); font-size: 7px; color: #778; }
+  .led i { width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #cc9, #861); }
+  .on .led i { background: radial-gradient(circle at 35% 30%, #eff, #6bc);
+    box-shadow: 0 0 8px rgba(200,255,255,.8); }
+  .led .txt-on, .on .led .txt-off { display: none; }
+  .on .led .txt-on { display: inline; color: #8ab; }
+  .monitor { background: linear-gradient(180deg, #232a36, #1a202c 50%, #141a24);
+    border-left: 4px solid var(--metal-edge); border-right: 4px solid var(--metal-edge);
+    padding: 0 20px 16px; }
+  .grille { height: 18px; margin: 0 -20px 16px;
+    background: repeating-linear-gradient(90deg, #1a202c 0 3px, #10141c 3px 5px);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.6);
+    border-left: 4px solid var(--metal-edge); border-right: 4px solid var(--metal-edge); }
+  .crt { border: 8px solid; border-color: #4a5262 #38404e #1c212b #38404e;
+    border-radius: 10px; background: #020409; position: relative; overflow: hidden;
+    box-shadow: inset 0 8px 30px rgba(0,0,0,.85), inset 0 0 70px rgba(10,40,60,.35);
+    padding: 22px 26px; min-height: 430px; }
+  .crt::after { content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,.45) 100%); }
+  .attract { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px; background: #020409;
+    transition: opacity .9s ease .15s; }
+  .on .attract { opacity: 0; pointer-events: none; }
+  .attract .t1 { font-family: var(--arcade); font-size: 26px; letter-spacing: 5px;
+    color: var(--beam); text-shadow: 0 0 18px rgba(215,244,255,.6);
+    animation: blink 1.4s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .attract .t2 { font-family: var(--arcade); font-size: 8px; color: #4a5f6d; letter-spacing: 2px; }
+  .coinbtn { width: 62px; height: 62px; border-radius: 50%; border: none; cursor: pointer;
+    background: radial-gradient(circle at 34% 26%, #ffe9a8, transparent 42%),
+      radial-gradient(circle at 50% 50%, #e8b93c, #b8860b 65%, #7a5a08);
+    box-shadow: 0 0 28px rgba(232,185,60,.45), 0 5px 0 #4a3805, 0 8px 18px rgba(0,0,0,.6);
+    font-family: var(--arcade); font-size: 16px; color: #6b4a08; }
+  .attract .credit { font-family: var(--arcade); font-size: 8px; color: #8a9; }
+  /* wireframe screen: everything is beam lines, no fills */
+  .screenui { position: relative; z-index: 2; color: var(--ink); font-size: 13px;
+    opacity: 0; transition: opacity 1.1s ease .5s; }
+  .on .screenui { opacity: 1; }
+  .w-chrome { display: flex; justify-content: space-between; font-family: var(--arcade);
+    font-size: 8px; color: var(--beam-soft); margin-bottom: 16px;
+    text-shadow: 0 0 8px rgba(160,220,245,.5); }
+  .w-goal { color: #9dc3d4; max-width: 62ch; line-height: 1.55; margin-bottom: 14px; }
+  .w-goal b { color: var(--beam); }
+  .w-predict { display: flex; gap: 12px; margin-bottom: 14px; }
+  .w-opt { flex: 1; border: 1px solid var(--beam-dim); padding: 10px 12px; color: #7fa4b5;
+    background: transparent; }
+  .w-opt .k { font-family: var(--arcade); font-size: 6px; display: block; margin-bottom: 7px;
+    color: #55707d; }
+  .w-opt.locked { border-color: var(--beam); color: var(--beam);
+    box-shadow: 0 0 12px rgba(215,244,255,.18), inset 0 0 12px rgba(215,244,255,.06);
+    text-shadow: 0 0 6px rgba(215,244,255,.5); }
+  .w-opt.locked .k { color: var(--beam-soft); }
+  .w-sentence { font-size: 16px; display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .w-sentence .g { color: #5d7b8a; }
+  .w-sentence .p { color: var(--beam); text-shadow: 0 0 8px rgba(215,244,255,.6);
+    border-bottom: 1px solid var(--beam); }
+  .w-board { border: 1px solid var(--beam-dim); padding: 14px 16px 10px; position: relative;
+    margin-bottom: 12px; box-shadow: inset 0 0 20px rgba(160,220,245,.04); }
+  .w-blabel { font-family: var(--arcade); font-size: 6.5px; color: #55707d; margin-bottom: 12px; }
+  .w-blabel b { color: var(--beam-soft); }
+  .w-row { display: grid; grid-template-columns: 72px 1fr 44px; gap: 12px; align-items: center;
+    padding: 4px 0; font-size: 12.5px; }
+  .w-row .w { text-align: right; color: var(--ink); }
+  .w-row .t { position: relative; height: 9px; border: 1px solid var(--beam-dim); }
+  .w-row .f { position: absolute; top: 1px; bottom: 1px; left: 1px;
+    border-right: 1.5px solid var(--beam); background:
+      repeating-linear-gradient(90deg, rgba(160,220,245,.16) 0 2px, transparent 2px 5px); }
+  .w-row.live .f { background: repeating-linear-gradient(90deg, rgba(215,244,255,.4) 0 2px, transparent 2px 5px);
+    box-shadow: 0 0 10px rgba(215,244,255,.25); }
+  .w-row .pc { color: #7fa4b5; font-size: 11px; }
+  .w-row.live .w, .w-row.live .pc { color: var(--beam); text-shadow: 0 0 6px rgba(215,244,255,.5); }
+  .w-row.cut .w, .w-row.cut .pc { color: #34464f; }
+  .w-row.cut .w { text-decoration: line-through; }
+  .w-row.cut .t { border-color: #24333a; }
+  .w-row.cut .f { border-right-color: #34464f; background:
+    repeating-linear-gradient(90deg, rgba(60,90,100,.15) 0 2px, transparent 2px 5px); }
+  .w-needle { position: absolute; top: 32px; bottom: 8px; width: 1px; left: 40%;
+    background: var(--beam); box-shadow: 0 0 10px var(--beam); }
+  .w-needle::after { content: "PICK"; position: absolute; top: -13px; left: -12px;
+    font-family: var(--arcade); font-size: 6px; color: var(--beam); }
+  .w-ledger { display: flex; gap: 12px; font-size: 12px; color: #9dc3d4; }
+  .w-ledger .e { border: 1px solid var(--beam-dim); padding: 6px 10px; }
+  .w-ledger .n { font-family: var(--arcade); font-size: 6px; color: #55707d;
+    display: block; margin-bottom: 4px; }
+  .w-ledger b { color: var(--beam); font-weight: 500; }
+  /* trackball deck */
+  .deckzone { background: linear-gradient(180deg, #1e242e, #151a22 40%, #0e1218);
+    border-left: 4px solid var(--metal-edge); border-right: 4px solid var(--metal-edge);
+    padding: 6px 20px 0; position: relative; }
+  .ledstrip { position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(160,220,245,.08) 50%, transparent);
+    transition: all 1s ease; }
+  .on .ledstrip { background: linear-gradient(90deg, transparent, rgba(160,220,245,.4) 30%, rgba(230,250,255,.6) 50%, rgba(160,220,245,.4) 70%, transparent); }
+  .stage { display: flex; justify-content: center; padding: 16px 8px 24px;
+    transform: perspective(1200px) rotateX(12deg); transform-origin: top center; }
+  .plate { display: flex; align-items: center; gap: 38px; padding: 16px 38px 14px;
+    background: linear-gradient(180deg, rgba(40,60,80,.14), rgba(0,0,0,.18)), #121c26;
+    border: 1px solid rgba(160,220,245,.14); border-bottom: 5px solid rgba(0,0,0,.75);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+  .ctl { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+  .ctl .lbl { font-family: var(--arcade); font-size: 7px; color: rgba(160,220,245,.65); }
+  .ctl .val { font-family: var(--arcade); font-size: 6px; color: #9cd; opacity: .8; }
+  .trackball { width: 84px; height: 56px; position: relative; }
+  .trackball .housing { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 84px; height: 34px; border-radius: 42px 42px 8px 8px;
+    background: linear-gradient(180deg, #2c3542, #161c26);
+    box-shadow: inset 0 3px 6px rgba(0,0,0,.6), 0 4px 8px rgba(0,0,0,.5); }
+  .trackball .ball { position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 46px; height: 46px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 26%, rgba(255,255,255,.5), transparent 40%),
+      radial-gradient(circle at 50% 50%, #eaf6ff, #9db8cc 55%, #5c7488);
+    box-shadow: 0 6px 14px rgba(0,0,0,.6), inset 0 -4px 10px rgba(0,0,0,.25); }
+  .knob { width: 50px; height: 50px; border-radius: 50%; position: relative;
+    background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.25), transparent 40%),
+      conic-gradient(#2a3240, #171c26, #2a3240, #171c26, #2a3240);
+    border: 2px solid #0b0e14;
+    box-shadow: 0 4px 0 #070a10, 0 7px 14px rgba(0,0,0,.55); }
+  .knob i { position: absolute; top: 4px; left: 50%; width: 3px; height: 14px;
+    background: var(--beam); transform-origin: 50% 21px;
+    box-shadow: 0 0 6px rgba(215,244,255,.7); }
+  .knob.k1 i { transform: translateX(-50%) rotate(-110deg); }
+  .knob.k2 i { transform: translateX(-50%) rotate(-70deg); }
+  .dome { width: 58px; height: 58px; border-radius: 50%; border: none; cursor: pointer;
+    background: radial-gradient(ellipse at 32% 22%, rgba(255,255,255,.45), transparent 45%),
+      radial-gradient(ellipse at 50% 50%, #33dd44, #1a9928 55%, #0a6a14);
+    box-shadow: 0 5px 0 #063a06, 0 8px 16px rgba(0,0,0,.5), 0 0 24px rgba(51,221,68,.35); }
+  .dome.stop { width: 42px; height: 42px;
+    background: radial-gradient(ellipse at 32% 22%, rgba(255,255,255,.4), transparent 50%),
+      radial-gradient(ellipse at 50% 50%, #ff3355, #c01030 60%, #800020);
+    box-shadow: 0 4px 0 #400010, 0 6px 12px rgba(0,0,0,.5); }
+  .cbase { background: linear-gradient(180deg, #161c26, #0d1118);
+    border: 4px solid var(--metal-edge); border-top: none; border-radius: 0 0 14px 14px;
+    padding: 16px 24px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .cbase .serial { font-family: var(--arcade); font-size: 5px; color: #34404f; }
+  .cbase .slot { width: 34px; height: 44px; border-radius: 4px; margin: 0 auto;
+    background: linear-gradient(180deg, #242c38, #10151c); border: 2px solid #0a0d12;
+    position: relative; }
+  .cbase .slot::after { content: ""; position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%); width: 4px; height: 16px; background: #000; }
+  .note { color: #6c7682; font-size: 13px; max-width: 900px; margin: 20px auto 0;
+    line-height: 1.6; font-family: var(--mono); }
+</style>
+</head>
+<body>
+  <div class="shell" id="cab">
+    <div class="marquee">
+      <span class="screw l"></span><span class="screw r"></span>
+      <h1>WORKINGS</h1>
+      <div class="tag">HOW THE MACHINE WORKS · TOKEN TO AGENT</div>
+      <div class="led"><i></i><span class="txt-off">STANDBY</span><span class="txt-on">ONLINE</span></div>
+    </div>
+    <div class="monitor">
+      <div class="grille"></div>
+      <div class="crt">
+        <div class="attract">
+          <div class="t1">INSERT COIN</div>
+          <div class="t2">CLICK THE COIN TO BEGIN STAGE 1</div>
+          <button class="coinbtn" onclick="document.getElementById('cab').classList.add('on')">★</button>
+          <div class="credit">CREDIT 0</div>
+        </div>
+        <div class="screenui">
+          <div class="w-chrome">
+            <span>STAGE 1 · ROUND 3/3</span>
+            <span>REMOVE THE RANDOMNESS</span>
+            <span>RATING 7/9</span>
+          </div>
+          <p class="w-goal">You set the temperature dial to <b>0</b> yourself. Lock your
+          prediction, then run the machine three times and read the ledger.</p>
+          <div class="w-predict">
+            <div class="w-opt locked"><span class="k">YOUR PREDICTION · LOCKED</span>Three identical endings</div>
+            <div class="w-opt"><span class="k">THE ALTERNATIVE</span>The endings can differ</div>
+          </div>
+          <p class="w-sentence">
+            <span class="g">mara</span><span class="g">met</span><span class="g">omar</span>
+            <span class="g">at</span><span class="g">the</span>
+            <span class="p">field</span><span class="p">.</span>
+          </p>
+          <div class="w-board">
+            <div class="w-blabel">PROBABILITY BOARD · PICKING WORD 3 OF 4 · <b>TEMP 0: TOP WORD, EVERY TIME</b></div>
+            <div class="w-needle"></div>
+            <div class="w-row live"><span class="w">she</span><span class="t"><span class="f" style="width:38%"></span></span><span class="pc">38.2%</span></div>
+            <div class="w-row"><span class="w">he</span><span class="t"><span class="f" style="width:31%"></span></span><span class="pc">30.8%</span></div>
+            <div class="w-row"><span class="w">smiled</span><span class="t"><span class="f" style="width:9%"></span></span><span class="pc">8.9%</span></div>
+            <div class="w-row cut"><span class="w">bridge</span><span class="t"><span class="f" style="width:3%"></span></span><span class="pc">2.6%</span></div>
+          </div>
+          <div class="w-ledger">
+            <div class="e"><span class="n">RUN 1</span><b>field . she waited</b></div>
+            <div class="e"><span class="n">RUN 2</span><b>field . she waited</b></div>
+            <div class="e"><span class="n">RUN 3</span>press START</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="deckzone">
+      <div class="ledstrip"></div>
+      <div class="stage">
+        <div class="plate">
+          <div class="ctl"><div class="trackball"><div class="housing"></div><div class="ball"></div></div><span class="lbl">NAVIGATE</span></div>
+          <div class="ctl"><div class="knob k1"><i></i></div><span class="lbl">TEMPERATURE</span><span class="val">0.0</span></div>
+          <div class="ctl"><div class="knob k2"><i></i></div><span class="lbl">TOP-K</span><span class="val">OFF</span></div>
+          <div class="ctl"><button class="dome" aria-label="start"></button><span class="lbl">START</span></div>
+          <div class="ctl"><button class="dome stop" aria-label="stop"></button><span class="lbl">STOP</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cbase">
+      <span class="serial">SER. NO. 003</span>
+      <div class="slot"></div>
+      <span class="serial">© WORKINGS</span>
+    </div>
+  </div>
+  <p class="note">
+    OPTION 3: VECTOR. The cabinet with a vector-monitor screen: every on-screen
+    element is drawn in beam lines with soft bloom, bars are outlined tanks
+    with a bright leading edge, nothing is solid-filled. The deck carries a
+    trackball for NAVIGATE beside the knobs. Same coin power-on ritual.
+  </p>
+</body>
+</html>

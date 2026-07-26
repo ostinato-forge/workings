@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup F: THE WORKINGS CABINET (literal arcade machine)</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #04060c;
+    --metal-a: #222232; --metal-b: #141424; --metal-edge: #3a3a4e;
+    --bezel-a: #44445a; --bezel-b: #33334a; --bezel-c: #1a1a2a;
+    --screen: #030807;
+    --phos: #7ee2a8;          /* the Workings cartridge phosphor */
+    --phos-dim: #35604a;
+    --ink: #d9efe2;
+    --green: #33dd44; --red: #ff3355;
+    --arcade: "Press Start 2P", monospace;
+    --mono: "IBM Plex Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(ellipse at 50% 80%, rgba(0,80,40,.10) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 20%, rgba(20,0,40,.08) 0%, transparent 50%),
+      var(--void);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 24px 0 40px;
+    font-family: var(--mono);
+  }
+  .floor-glow { position: fixed; bottom: -40px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 120px; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 100%, rgba(126,226,168,.05), rgba(126,226,168,.02) 40%, transparent 70%); }
+  .shell {
+    width: 940px; max-width: 96vw; position: relative;
+    filter: drop-shadow(0 30px 80px rgba(0,0,0,.9)) drop-shadow(0 0 40px rgba(126,226,168,.04));
+  }
+  /* == marquee == */
+  .marquee {
+    background: linear-gradient(180deg, #1c2433 0%, #10141f 100%);
+    border: 4px solid var(--metal-edge); border-bottom: none;
+    border-radius: 14px 14px 0 0;
+    padding: 20px 26px 16px; position: relative;
+  }
+  .marquee .screw { position: absolute; width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #666, #222 70%); top: 10px; }
+  .marquee .screw.l { left: 10px; } .marquee .screw.r { right: 10px; }
+  .marquee h1 {
+    font-family: var(--arcade); font-size: 26px; letter-spacing: 6px;
+    color: var(--phos);
+    text-shadow: 0 0 14px rgba(126,226,168,.55), 0 0 40px rgba(126,226,168,.2);
+  }
+  .marquee .tag {
+    font-family: var(--arcade); font-size: 8px; letter-spacing: 2px;
+    color: #b48ef0; margin-top: 10px; text-shadow: 0 0 8px rgba(180,142,240,.4);
+  }
+  .marquee .led { position: absolute; right: 24px; top: 24px;
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--arcade); font-size: 7px; color: #7a8; }
+  .marquee .led i { width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #8f8, #2c2);
+    box-shadow: 0 0 8px rgba(60,255,90,.8); animation: led 2.4s ease-in-out infinite; }
+  @keyframes led { 50% { opacity: .55; } }
+  /* == monitor frame == */
+  .monitor {
+    background: linear-gradient(180deg, #222236 0%, #1a1a2e 50%, #141428 100%);
+    border-left: 4px solid var(--metal-edge); border-right: 4px solid var(--metal-edge);
+    padding: 0 20px 16px;
+    box-shadow: inset 4px 0 8px rgba(0,0,0,.3), inset -4px 0 8px rgba(0,0,0,.3);
+  }
+  .grille {
+    height: 18px; margin: 0 -20px 16px;
+    background: repeating-linear-gradient(90deg, #1a1a28 0 3px, #111118 3px 5px);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.6);
+    border-left: 4px solid var(--metal-edge); border-right: 4px solid var(--metal-edge);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .grille span { font-family: var(--arcade); font-size: 4px; letter-spacing: .3em;
+    color: rgba(255,255,255,.08); }
+  .crt {
+    border: 8px solid; border-color: var(--bezel-a) var(--bezel-b) var(--bezel-c) var(--bezel-b);
+    border-radius: 10px; background: var(--screen);
+    position: relative; overflow: hidden;
+    box-shadow:
+      inset 0 8px 30px rgba(0,0,0,.8), inset 8px 0 20px rgba(0,0,0,.4),
+      inset -8px 0 20px rgba(0,0,0,.4), inset 0 0 60px rgba(0,40,20,.3),
+      0 0 20px rgba(126,226,168,.06);
+    padding: 22px 26px;
+  }
+  .crt::before { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,.03) 0 1px, transparent 1px 4px); }
+  .crt::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,.35) 100%); }
+  .crt .phosphor { position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: radial-gradient(ellipse at 50% 45%, rgba(126,226,168,.05), transparent 60%);
+    animation: led 4s ease-in-out infinite; }
+  /* == on-screen content: the Workings course == */
+  .screenui { position: relative; z-index: 3; color: var(--ink); }
+  .chrome { display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--arcade); font-size: 8px; color: #6f8a7c; letter-spacing: .08em;
+    padding-bottom: 12px; border-bottom: 1px solid #16281f; margin-bottom: 14px; }
+  .chrome .a { color: var(--phos); text-shadow: 0 0 8px rgba(126,226,168,.4); }
+  .goal { font-size: 14px; line-height: 1.55; color: #9fc0ad; max-width: 62ch; margin-bottom: 14px; }
+  .goal b { color: var(--ink); font-weight: 600; }
+  .predict { display: flex; gap: 10px; margin-bottom: 14px; }
+  .opt { flex: 1; border: 1px solid #1d3327; padding: 10px 12px; font-size: 13px;
+    color: #7f9a8b; border-radius: 3px; }
+  .opt .k { font-family: var(--arcade); font-size: 6px; display: block;
+    margin-bottom: 7px; color: #567; letter-spacing: .1em; }
+  .opt.locked { color: var(--ink); border-color: var(--phos);
+    box-shadow: 0 0 0 1px rgba(126,226,168,.5), 0 0 18px rgba(126,226,168,.12); }
+  .opt.locked .k { color: var(--phos); }
+  .sentence { font-family: var(--mono); font-size: 16px; display: flex; gap: 10px;
+    flex-wrap: wrap; margin-bottom: 14px; align-items: baseline; }
+  .sentence .g { color: #648577; }
+  .sentence .p { color: var(--ink); border-bottom: 2px solid var(--phos); }
+  .sentence .c { color: var(--phos); animation: led 1.2s steps(1) infinite; }
+  .board { border: 1px solid #1d3327; border-radius: 3px; background: rgba(3,16,10,.6);
+    padding: 14px 14px 10px; position: relative; margin-bottom: 12px; }
+  .blabel { font-family: var(--arcade); font-size: 6.5px; color: #6f8a7c;
+    letter-spacing: .1em; margin-bottom: 10px; }
+  .blabel b { color: var(--phos); }
+  .row { display: grid; grid-template-columns: 72px 1fr 44px; gap: 10px; align-items: center;
+    padding: 3.5px 0; font-size: 12.5px; }
+  .row .w { text-align: right; color: var(--ink); }
+  .row .t { position: relative; height: 7px; background: #051009; border-radius: 1px; }
+  .row .f { position: absolute; top: 0; bottom: 0; left: 0; background: var(--phos-dim); border-radius: 1px; }
+  .row.live .f { background: var(--phos); box-shadow: 0 0 8px rgba(126,226,168,.4); }
+  .row .pc { color: #6f8a7c; font-size: 11px; }
+  .row.live .pc { color: var(--phos); }
+  .row.cut .w, .row.cut .pc { color: #3d4f45; }
+  .row.cut .w { text-decoration: line-through; }
+  .row.cut .f { background: #16241d; }
+  .needle { position: absolute; top: 30px; bottom: 8px; width: 1.5px; left: 40%;
+    background: var(--phos); box-shadow: 0 0 8px var(--phos); }
+  .needle::after { content: "PICK"; position: absolute; top: -13px; left: -12px;
+    font-family: var(--arcade); font-size: 6px; color: var(--phos); }
+  .ledger { display: flex; gap: 14px; font-size: 12px; color: #9fc0ad; }
+  .ledger .e { border: 1px solid #16281f; padding: 7px 10px; border-radius: 3px; }
+  .ledger .e b { color: var(--ink); font-weight: 500; }
+  .ledger .n { font-family: var(--arcade); font-size: 6px; color: #567;
+    display: block; margin-bottom: 5px; }
+  /* == control deck == */
+  .deckzone {
+    background: linear-gradient(180deg, #1e1e30 0%, #141424 40%, #0e0e1c 100%);
+    border-left: 4px solid var(--metal-edge); border-right: 4px solid var(--metal-edge);
+    padding: 6px 20px 0; position: relative;
+    box-shadow: inset 4px 0 8px rgba(0,0,0,.3), inset -4px 0 8px rgba(0,0,0,.3);
+  }
+  .ledstrip { position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(126,226,168,.4) 30%, rgba(200,255,225,.6) 50%, rgba(126,226,168,.4) 70%, transparent);
+    box-shadow: 0 0 6px rgba(126,226,168,.3); }
+  .stage { display: flex; justify-content: center;
+    padding: 16px 8px 24px;
+    transform: perspective(1200px) rotateX(12deg); transform-origin: top center; }
+  .plate { display: flex; align-items: center; gap: 34px;
+    padding: 18px 36px 16px;
+    background: linear-gradient(180deg, rgba(40,70,55,.12), rgba(0,0,0,.15)), #12241c;
+    border: 1px solid rgba(126,226,168,.12); border-bottom: 5px solid rgba(0,0,0,.75);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 0 rgba(80,140,110,.12), 0 8px 24px rgba(0,0,0,.5);
+  }
+  .ctl { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+  .ctl .lbl { font-family: var(--arcade); font-size: 7px; letter-spacing: .12em; color: rgba(126,226,168,.6); }
+  .ctl .val { font-family: var(--arcade); font-size: 6px; color: #7fa; opacity: .7; }
+  /* joystick */
+  .stick { width: 64px; height: 64px; position: relative; }
+  .stick .base { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 54px; height: 16px; border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 30%, #333346, #101018 70%);
+    box-shadow: 0 3px 6px rgba(0,0,0,.6); }
+  .stick .rod { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%) rotate(-4deg);
+    width: 7px; height: 40px; background: linear-gradient(90deg, #555, #222); border-radius: 3px; }
+  .stick .ball { position: absolute; top: -4px; left: 50%; transform: translateX(-58%);
+    width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.5), transparent 45%),
+      radial-gradient(circle at 50% 50%, #e04455 0%, #a01830 60%, #600818 100%);
+    box-shadow: 0 4px 10px rgba(0,0,0,.6); }
+  /* rotary knob: the Workings-specific control */
+  .knob { width: 58px; height: 58px; border-radius: 50%; position: relative;
+    background:
+      radial-gradient(circle at 32% 25%, rgba(255,255,255,.28), transparent 40%),
+      conic-gradient(#2c2c3e, #1a1a28, #2c2c3e, #1a1a28, #2c2c3e),
+      #222;
+    border: 2px solid #0c0c14;
+    box-shadow: 0 5px 0 #08080f, 0 8px 16px rgba(0,0,0,.55), inset 0 1px 1px rgba(255,255,255,.15); }
+  .knob i { position: absolute; top: 5px; left: 50%; width: 3px; height: 16px;
+    background: var(--phos); border-radius: 2px; transform-origin: 50% 24px;
+    box-shadow: 0 0 6px rgba(126,226,168,.7); }
+  .knob.k1 i { transform: translateX(-50%) rotate(40deg); }
+  .knob.k2 i { transform: translateX(-50%) rotate(-70deg); }
+  .ticks { position: absolute; inset: -9px; border-radius: 50%; }
+  .ticks b { position: absolute; top: 0; left: 50%; width: 2px; height: 5px;
+    background: #445; transform-origin: 50% 38px; }
+  /* dome buttons */
+  .dome { width: 62px; height: 62px; border-radius: 50%; border: none; cursor: pointer;
+    background:
+      radial-gradient(ellipse at 32% 22%, rgba(255,255,255,.45), transparent 45%),
+      radial-gradient(ellipse at 50% 50%, #33dd44 0%, #1a9928 55%, #0a6a14 100%);
+    box-shadow: 0 5px 0 #063a06, 0 8px 16px rgba(0,0,0,.5), 0 0 24px rgba(51,221,68,.35);
+    animation: breathe 2s ease-in-out infinite; }
+  @keyframes breathe { 50% { box-shadow: 0 5px 0 #063a06, 0 8px 16px rgba(0,0,0,.5), 0 0 36px rgba(51,221,68,.55); } }
+  .dome.stop { width: 44px; height: 44px; animation: none;
+    background:
+      radial-gradient(ellipse at 32% 22%, rgba(255,255,255,.4), transparent 50%),
+      radial-gradient(ellipse at 50% 50%, #ff3355 0%, #c01030 60%, #800020 100%);
+    box-shadow: 0 4px 0 #400010, 0 6px 12px rgba(0,0,0,.5), 0 0 12px rgba(255,51,85,.2); }
+  /* == cabinet base / coin door == */
+  .base {
+    background: linear-gradient(180deg, #16162a 0%, #0c0c1a 100%);
+    border: 4px solid var(--metal-edge); border-top: none;
+    border-radius: 0 0 14px 14px;
+    padding: 18px 24px 22px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .coin { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0 auto; }
+  .coin .door { width: 34px; height: 44px; border-radius: 4px;
+    background: linear-gradient(180deg, #26263a, #12121e);
+    border: 2px solid #0a0a12; box-shadow: inset 0 2px 4px rgba(0,0,0,.6);
+    position: relative; }
+  .coin .door::after { content: ""; position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%); width: 4px; height: 16px; background: #000;
+    border-radius: 2px; box-shadow: 0 0 4px rgba(126,226,168,.35); }
+  .coin .t { font-family: var(--arcade); font-size: 7px; color: rgba(126,226,168,.5);
+    letter-spacing: .15em; animation: led 1.6s steps(1) infinite; }
+  .base .serial { font-family: var(--arcade); font-size: 5px; color: #333d55; }
+  .note { color: #66707c; font-size: 13px; max-width: 900px; margin: 22px auto 0;
+    line-height: 1.6; font-family: var(--mono); }
+</style>
+</head>
+<body>
+  <div class="floor-glow"></div>
+  <div class="shell">
+    <div class="marquee">
+      <span class="screw l"></span><span class="screw r"></span>
+      <h1>WORKINGS</h1>
+      <div class="tag">HOW THE MACHINE WORKS · TOKEN TO AGENT</div>
+      <div class="led"><i></i>ONLINE</div>
+    </div>
+
+    <div class="monitor">
+      <div class="grille"><span>STEREO SOUND</span></div>
+      <div class="crt">
+        <div class="phosphor"></div>
+        <div class="screenui">
+          <div class="chrome">
+            <span class="a">STAGE 1 · ROUND 3/3</span>
+            <span>REMOVE THE RANDOMNESS</span>
+            <span>RATING 7/9</span>
+          </div>
+          <p class="goal">You set the temperature dial to <b>0</b> yourself.
+          Lock your prediction, then run the machine three times and read the ledger.</p>
+          <div class="predict">
+            <div class="opt locked"><span class="k">YOUR PREDICTION · LOCKED</span>Three identical endings</div>
+            <div class="opt"><span class="k">THE ALTERNATIVE</span>The endings can differ</div>
+          </div>
+          <p class="sentence">
+            <span class="g">mara</span><span class="g">met</span><span class="g">omar</span>
+            <span class="g">at</span><span class="g">the</span>
+            <span class="p">field</span><span class="p">.</span><span class="c">▮</span>
+          </p>
+          <div class="board">
+            <div class="blabel">PROBABILITY BOARD · PICKING WORD 3 OF 4 · <b>TEMP 0: TOP WORD, EVERY TIME</b></div>
+            <div class="needle"></div>
+            <div class="row live"><span class="w">she</span><span class="t"><span class="f" style="width:38%"></span></span><span class="pc">38.2%</span></div>
+            <div class="row"><span class="w">he</span><span class="t"><span class="f" style="width:31%"></span></span><span class="pc">30.8%</span></div>
+            <div class="row"><span class="w">smiled</span><span class="t"><span class="f" style="width:9%"></span></span><span class="pc">8.9%</span></div>
+            <div class="row cut"><span class="w">bridge</span><span class="t"><span class="f" style="width:3%"></span></span><span class="pc">2.6%</span></div>
+          </div>
+          <div class="ledger">
+            <div class="e"><span class="n">RUN 1</span><b>field . she waited</b></div>
+            <div class="e"><span class="n">RUN 2</span><b>field . she waited</b></div>
+            <div class="e"><span class="n">RUN 3</span>press START</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="deckzone">
+      <div class="ledstrip"></div>
+      <div class="stage">
+        <div class="plate">
+          <div class="ctl">
+            <div class="stick"><div class="base"></div><div class="rod"></div><div class="ball"></div></div>
+            <span class="lbl">NAVIGATE</span>
+          </div>
+          <div class="ctl">
+            <div class="knob k1"><div class="ticks"><b style="transform:rotate(-120deg)"></b><b style="transform:rotate(-60deg)"></b><b></b><b style="transform:rotate(60deg)"></b><b style="transform:rotate(120deg)"></b></div><i></i></div>
+            <span class="lbl">TEMPERATURE</span>
+            <span class="val">0.0</span>
+          </div>
+          <div class="ctl">
+            <div class="knob k2"><div class="ticks"><b style="transform:rotate(-120deg)"></b><b style="transform:rotate(-60deg)"></b><b></b><b style="transform:rotate(60deg)"></b><b style="transform:rotate(120deg)"></b></div><i></i></div>
+            <span class="lbl">TOP-K</span>
+            <span class="val">OFF</span>
+          </div>
+          <div class="ctl">
+            <button class="dome" aria-label="start"></button>
+            <span class="lbl">START</span>
+          </div>
+          <div class="ctl">
+            <button class="dome stop" aria-label="stop"></button>
+            <span class="lbl">STOP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="base">
+      <span class="serial">SER. NO. 001</span>
+      <div class="coin">
+        <div class="door"></div>
+        <span class="t">INSERT COIN</span>
+      </div>
+      <span class="serial">© WORKINGS</span>
+    </div>
+  </div>
+
+  <p class="note">
+    MOCKUP F: THE WORKINGS CABINET. A literal arcade machine in the studio
+    cabinet language: chassis, marquee with screws and ONLINE LED, speaker
+    grille, four-tone CRT bezel with scanlines and vignette, perspective
+    control deck, coin door. The cartridge identity is the trace-green
+    phosphor, and the deck carries this course's own hardware: TEMPERATURE
+    and TOP-K as physical rotary knobs beside NAVIGATE, START, and STOP. On
+    the screen: the operator-bench lesson exactly as designed, prediction
+    framing, no wagering anywhere. Static mockup: nothing is wired.
+  </p>
+</body>
+</html>
