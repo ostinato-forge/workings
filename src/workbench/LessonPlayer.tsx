@@ -49,9 +49,11 @@ function Evidence({
 
 export function LessonPlayer({
   lesson,
+  stageNumber,
   onComplete,
 }: {
   lesson: TokenMachineLesson;
+  stageNumber: number;
   onComplete: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "reading" });
@@ -97,12 +99,15 @@ export function LessonPlayer({
 
   return (
     <main>
-      <h1>{lesson.title}</h1>
+      <p className="stage-title" aria-hidden="true">
+        Stage {stageNumber}
+      </p>
+      <h1 className="stage-name">{lesson.title}</h1>
 
       {phase.kind === "reading" ? (
-        <div>
+        <div className="phase-enter">
           {lesson.guideCards.map((card) => (
-            <section key={card.id}>
+            <section key={card.id} className="panel">
               <h2>{card.title}</h2>
               <p>{card.body}</p>
             </section>
@@ -114,13 +119,13 @@ export function LessonPlayer({
       ) : null}
 
       {phase.kind === "predicting" ? (
-        <div>
+        <div className="phase-enter">
           <h2>Case {phase.caseIndex + 1}</h2>
           <p>{lesson.cases[phase.caseIndex].setup}</p>
           <fieldset>
             <legend>{lesson.cases[phase.caseIndex].question}</legend>
             {lesson.options.map((option) => (
-              <label key={option.id} style={{ display: "block" }}>
+              <label key={option.id} className="option-row">
                 <input
                   type="radio"
                   name={`prediction-${phase.caseIndex}`}
@@ -137,17 +142,21 @@ export function LessonPlayer({
               </label>
             ))}
           </fieldset>
-          <button
-            disabled={selections[phase.caseIndex] === null}
-            onClick={() => runCase(phase.caseIndex)}
-          >
-            Lock in my guess and run
-          </button>
+          <div className="deck">
+            <button
+              className="start-button"
+              disabled={selections[phase.caseIndex] === null}
+              onClick={() => runCase(phase.caseIndex)}
+            >
+              Start
+              <span className="start-sublabel">lock your guess and run</span>
+            </button>
+          </div>
         </div>
       ) : null}
 
       {phase.kind === "revealed" ? (
-        <div>
+        <div className="phase-enter">
           <h2>Case {phase.caseIndex + 1}: what happened</h2>
           {(() => {
             const record = records[phase.caseIndex];
@@ -158,7 +167,7 @@ export function LessonPlayer({
             const guessed = selections[phase.caseIndex];
             return (
               <div>
-                <p aria-live="polite">
+                <p aria-live="polite" className="verdict">
                   {derived === guessed
                     ? "Your guess matches what happened."
                     : "Your guess does not match what happened."}
@@ -185,18 +194,20 @@ export function LessonPlayer({
       ) : null}
 
       {phase.kind === "complete" ? (
-        <div>
+        <div className="phase-enter">
           <h2>Free play</h2>
           <p>
             The lesson is complete. The dials are unlocked; running here is
             exploration, not assessment.
           </p>
-          <DialControls
-            value={freeSampling}
-            disabled={false}
-            onChange={setFreeSampling}
-          />
-          <button onClick={runFree}>Run with these dials</button>
+          <div className="deck">
+            <DialControls
+              value={freeSampling}
+              disabled={false}
+              onChange={setFreeSampling}
+            />
+            <button onClick={runFree}>Run with these dials</button>
+          </div>
           {freeProblem !== null ? (
             <div role="alert">
               <p>{freeProblem.what}</p>

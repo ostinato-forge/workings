@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { SHELL_COPY } from "./copy";
 
 export class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -13,13 +14,12 @@ export class ErrorBoundary extends Component<
   render() {
     if (this.state.message !== null) {
       return (
-        <div role="alert">
-          <p>This lesson hit an error and stopped: {this.state.message}</p>
+        <div role="alert" className="panel">
           <p>
-            The rest of the app still works. Use the back link to return to
-            the lesson list.
+            {SHELL_COPY.errorLead} {this.state.message}
           </p>
-          <a href="#/">Back to the lesson list</a>
+          <p>{SHELL_COPY.errorRecovery}</p>
+          <a href="#/">{SHELL_COPY.errorBack}</a>
         </div>
       );
     }

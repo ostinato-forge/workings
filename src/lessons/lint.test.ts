@@ -35,3 +35,11 @@ describe("lintCopy", () => {
     expect(violations[0]).toContain("pure magic here");
   });
 });
+
+import { shellCopyStrings } from "../shell/copy";
+
+describe("shell copy", () => {
+  test("every shell string passes the neutrality lint", () => {
+    expect(lintCopy(shellCopyStrings())).toEqual([]);
+  });
+});
