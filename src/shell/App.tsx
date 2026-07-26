@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { lessonById, lessons } from "../lessons/index";
+import { Cabinet } from "./Cabinet";
+import { SHELL_COPY } from "./copy";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 const LessonPlayer = lazy(() =>
@@ -40,36 +42,51 @@ export function App() {
 
   if (lesson !== undefined) {
     return (
-      <ErrorBoundary>
-        <nav>
-          <a href="#/">All lessons</a>
-        </nav>
-        <Suspense fallback={<p>Loading the lesson.</p>}>
-          <LessonPlayer
-            lesson={lesson}
-            onComplete={() => {
-              const next = { ...readProgress(), [lesson.id]: "complete" as const };
-              localStorage.setItem(PROGRESS_KEY, JSON.stringify(next));
-              setProgress(next);
-            }}
-          />
-        </Suspense>
-      </ErrorBoundary>
+      <Cabinet>
+        <ErrorBoundary>
+          <nav>
+            <a href="#/">{SHELL_COPY.backToList}</a>
+          </nav>
+          <Suspense fallback={<p>{SHELL_COPY.loading}</p>}>
+            <LessonPlayer
+              lesson={lesson}
+              stageNumber={1}
+              onComplete={() => {
+                const next = {
+                  ...readProgress(),
+                  [lesson.id]: "complete" as const,
+                };
+                localStorage.setItem(PROGRESS_KEY, JSON.stringify(next));
+                setProgress(next);
+              }}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      </Cabinet>
     );
   }
 
   return (
-    <main>
-      <h1>Workings</h1>
-      <p>Playable lessons on how the machine works.</p>
-      <ol>
-        {lessons.map((entry) => (
-          <li key={entry.id}>
-            <a href={`#/lesson/${entry.id}`}>{entry.title}</a>
-            {progress[entry.id] === "complete" ? " (complete)" : ""}
-          </li>
-        ))}
-      </ol>
-    </main>
+    <Cabinet>
+      <main>
+        <h1>{SHELL_COPY.listTitle}</h1>
+        <p>{SHELL_COPY.listIntro}</p>
+        <ol className="stage-list">
+          {lessons.map((entry, index) => (
+            <li key={entry.id}>
+              <a href={`#/lesson/${entry.id}`}>
+                <span className="stage-tag" aria-hidden="true">
+                  Stage {index + 1}
+                </span>
+                <span>{entry.title}</span>
+                {progress[entry.id] === "complete" ? (
+                  <span className="complete-tag">{SHELL_COPY.completeTag}</span>
+                ) : null}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </main>
+    </Cabinet>
   );
 }
