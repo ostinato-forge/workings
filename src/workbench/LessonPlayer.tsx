@@ -5,44 +5,49 @@ import {
 } from "../engine/token-machine";
 import type { SamplingConfig } from "../engine/sampling";
 import type { EngineProblem } from "../engine/run-record";
-import type { TokenMachineLesson } from "../lessons/types";
+import type {
+  PredictBeat,
+  TokenMachineLesson,
+} from "../lessons/types";
 import { DialControls } from "./DialControls";
 import { ProbabilityBars } from "./ProbabilityBars";
 
-type Phase =
-  | { kind: "reading" }
-  | { kind: "predicting"; caseIndex: 0 | 1 }
-  | { kind: "revealed"; caseIndex: 0 | 1 }
-  | { kind: "complete" };
-
 function Evidence({
-  record,
-  lesson,
+  beat,
+  records,
 }: {
-  record: TokenMachineRecord;
-  lesson: TokenMachineLesson;
+  beat: PredictBeat;
+  records: TokenMachineRecord[];
 }) {
-  const step = record.steps[0];
-  if (step === undefined) return <p>The run produced no steps.</p>;
-  const survivors = step.event.candidates.filter((c) => c.survived).length;
+  const first = records[0];
+  if (first === undefined) return <p>The run records are missing.</p>;
+  const firstStep = first.steps[0];
+  if (firstStep === undefined) return <p>The run produced no steps.</p>;
   return (
     <div>
+      {beat.showEvidence === "all" ? (
+        <div className="panel">
+          {records.map((record, index) => {
+            const step = record.steps[0];
+            return step === undefined ? null : (
+              <p key={record.seed}>
+                Run {index + 1} (seed {record.seed}): picked{" "}
+                {step.event.sampledToken}.
+              </p>
+            );
+          })}
+        </div>
+      ) : null}
       <p>
-        Prompt: {record.config.prompt}. Sampled next token:{" "}
-        {step.event.sampledToken}. {survivors} of{" "}
-        {step.event.candidates.length} candidates survived the cut.
+        Prompt: {first.config.prompt}. Sampled next word:{" "}
+        {firstStep.event.sampledToken}.{" "}
+        {firstStep.event.candidates.filter((c) => c.survived).length} of{" "}
+        {firstStep.event.candidates.length} words could win the draw.
       </p>
       <ProbabilityBars
-        candidates={step.event.candidates}
-        sampledId={step.event.sampledId}
+        candidates={firstStep.event.candidates}
+        sampledId={firstStep.event.sampledId}
       />
-      <p>
-        Derived from this run: {
-          lesson.options.find(
-            (o) => o.id === lesson.deriveCorrectOption(record),
-          )?.label
-        }.
-      </p>
     </div>
   );
 }
@@ -56,36 +61,51 @@ export function LessonPlayer({
   stageNumber: number;
   onComplete: () => void;
 }) {
-  const [phase, setPhase] = useState<Phase>({ kind: "reading" });
-  const [selections, setSelections] = useState<(string | null)[]>([null, null]);
-  const [records, setRecords] = useState<(TokenMachineRecord | null)[]>([
-    null,
-    null,
-  ]);
+  const [beatIndex, setBeatIndex] = useState(0);
+  const [selection, setSelection] = useState<string | null>(null);
+  const [records, setRecords] = useState<TokenMachineRecord[] | null>(null);
+  const [completed, setCompleted] = useState(false);
   const [freeSampling, setFreeSampling] = useState<SamplingConfig>({
     temperature: 1,
   });
   const [freeRecord, setFreeRecord] = useState<TokenMachineRecord | null>(null);
   const [freeProblem, setFreeProblem] = useState<EngineProblem | null>(null);
 
-  const runCase = (caseIndex: 0 | 1): void => {
-    const lessonCase = lesson.cases[caseIndex];
-    const result = runTokenMachine(lesson.model, lesson.tokenizer, lessonCase.config);
-    if (!result.ok) {
-      throw new Error(`contract-tested case failed: ${result.problem.what}`);
+  const beat = lesson.beats[beatIndex];
+
+  const advance = (): void => {
+    setSelection(null);
+    setRecords(null);
+    const next = beatIndex + 1;
+    setBeatIndex(next);
+    const upcoming = lesson.beats[next];
+    if (upcoming?.kind === "free-play" && !completed) {
+      setCompleted(true);
+      onComplete();
     }
-    setRecords((prev) => {
-      const next = [...prev];
-      next[caseIndex] = result.record;
-      return next;
-    });
-    setPhase({ kind: "revealed", caseIndex });
+  };
+
+  const runPredict = (predict: PredictBeat): void => {
+    const results = predict.configs.map((config) =>
+      runTokenMachine(lesson.model, lesson.tokenizer, config),
+    );
+    const failed = results.find((r) => !r.ok);
+    if (failed !== undefined && !failed.ok) {
+      throw new Error(`contract-tested beat failed: ${failed.problem.what}`);
+    }
+    setRecords(
+      results.map((r) => {
+        if (!r.ok) throw new Error("unreachable");
+        return r.record;
+      }),
+    );
   };
 
   const runFree = (): void => {
-    const base = lesson.cases[0].config;
+    const freeBeat = lesson.beats.find((b) => b.kind === "free-play");
+    if (freeBeat === undefined || freeBeat.kind !== "free-play") return;
     const result = runTokenMachine(lesson.model, lesson.tokenizer, {
-      ...base,
+      ...freeBeat.baseConfig,
       sampling: freeSampling,
     });
     if (result.ok) {
@@ -97,109 +117,82 @@ export function LessonPlayer({
     }
   };
 
+  if (beat === undefined) return <p>The lesson has no more beats.</p>;
+
   return (
     <main>
       <p className="stage-title" aria-hidden="true">
         Stage {stageNumber}
       </p>
       <h1 className="stage-name">{lesson.title}</h1>
+      <p className="evidence-meta">
+        Beat {beatIndex + 1} of {lesson.beats.length}
+      </p>
 
-      {phase.kind === "reading" ? (
+      {beat.kind === "teach" || beat.kind === "recap" ? (
         <div className="phase-enter">
-          {lesson.guideCards.map((card) => (
-            <section key={card.id} className="panel">
-              <h2>{card.title}</h2>
-              <p>{card.body}</p>
-            </section>
-          ))}
-          <button onClick={() => setPhase({ kind: "predicting", caseIndex: 0 })}>
-            Start the first case
-          </button>
+          <section className="panel">
+            <h2>{beat.title}</h2>
+            <p>{beat.body}</p>
+          </section>
+          <button onClick={advance}>Continue</button>
         </div>
       ) : null}
 
-      {phase.kind === "predicting" ? (
+      {beat.kind === "predict" ? (
         <div className="phase-enter">
-          <h2>Case {phase.caseIndex + 1}</h2>
-          <p>{lesson.cases[phase.caseIndex].setup}</p>
-          <fieldset>
-            <legend>{lesson.cases[phase.caseIndex].question}</legend>
-            {lesson.options.map((option) => (
-              <label key={option.id} className="option-row">
-                <input
-                  type="radio"
-                  name={`prediction-${phase.caseIndex}`}
-                  checked={selections[phase.caseIndex] === option.id}
-                  onChange={() =>
-                    setSelections((prev) => {
-                      const next = [...prev];
-                      next[phase.caseIndex] = option.id;
-                      return next;
-                    })
-                  }
-                />{" "}
-                {option.label}
-              </label>
-            ))}
-          </fieldset>
-          <div className="deck">
-            <button
-              className="start-button"
-              disabled={selections[phase.caseIndex] === null}
-              onClick={() => runCase(phase.caseIndex)}
-            >
-              Start
-              <span className="start-sublabel">lock your guess and run</span>
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {phase.kind === "revealed" ? (
-        <div className="phase-enter">
-          <h2>Case {phase.caseIndex + 1}: what happened</h2>
-          {(() => {
-            const record = records[phase.caseIndex];
-            if (record === null || record === undefined) {
-              return <p>The run record is missing.</p>;
-            }
-            const derived = lesson.deriveCorrectOption(record);
-            const guessed = selections[phase.caseIndex];
-            return (
-              <div>
-                <p aria-live="polite" className="verdict">
-                  {derived === guessed
-                    ? "Your guess matches what happened."
-                    : "Your guess does not match what happened."}
-                </p>
-                <Evidence record={record} lesson={lesson} />
+          <p className="panel">{beat.setup}</p>
+          {records === null ? (
+            <div>
+              <fieldset>
+                <legend>{beat.question}</legend>
+                {beat.options.map((option) => (
+                  <label key={option.id} className="option-row">
+                    <input
+                      type="radio"
+                      name={`prediction-${beat.id}`}
+                      checked={selection === option.id}
+                      onChange={() => setSelection(option.id)}
+                    />{" "}
+                    {option.label}
+                  </label>
+                ))}
+              </fieldset>
+              <div className="deck">
+                <button
+                  className="start-button"
+                  disabled={selection === null}
+                  onClick={() => runPredict(beat)}
+                >
+                  Start
+                  <span className="start-sublabel">lock your guess and run</span>
+                </button>
               </div>
-            );
-          })()}
-          {phase.caseIndex === 0 ? (
-            <button onClick={() => setPhase({ kind: "predicting", caseIndex: 1 })}>
-              On to the second case
-            </button>
+            </div>
           ) : (
-            <button
-              onClick={() => {
-                setPhase({ kind: "complete" });
-                onComplete();
-              }}
-            >
-              Finish the lesson
-            </button>
+            <div>
+              <p aria-live="polite" className="verdict">
+                {beat.deriveCorrectOption(records) === selection
+                  ? "Your guess matches what happened."
+                  : "Your guess does not match what happened."}{" "}
+                {
+                  beat.options.find(
+                    (o) => o.id === beat.deriveCorrectOption(records),
+                  )?.label
+                }{" "}
+                is what the run shows.
+              </p>
+              <Evidence beat={beat} records={records} />
+              <button onClick={advance}>Continue</button>
+            </div>
           )}
         </div>
       ) : null}
 
-      {phase.kind === "complete" ? (
+      {beat.kind === "free-play" ? (
         <div className="phase-enter">
           <h2>Free play</h2>
-          <p>
-            The lesson is complete. The dials are unlocked; running here is
-            exploration, not assessment.
-          </p>
+          <p>{beat.intro}</p>
           <div className="deck">
             <DialControls
               value={freeSampling}
@@ -209,13 +202,16 @@ export function LessonPlayer({
             <button onClick={runFree}>Run with these dials</button>
           </div>
           {freeProblem !== null ? (
-            <div role="alert">
+            <div role="alert" className="panel">
               <p>{freeProblem.what}</p>
               <p>{freeProblem.fix}</p>
             </div>
           ) : null}
-          {freeRecord !== null ? (
-            <Evidence record={freeRecord} lesson={lesson} />
+          {freeRecord !== null && freeRecord.steps[0] !== undefined ? (
+            <ProbabilityBars
+              candidates={freeRecord.steps[0].event.candidates}
+              sampledId={freeRecord.steps[0].event.sampledId}
+            />
           ) : null}
         </div>
       ) : null}
