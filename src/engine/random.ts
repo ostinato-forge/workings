@@ -41,3 +41,18 @@ export function shuffled<T>(rng: Rng, items: readonly T[]): T[] {
   }
   return copy;
 }
+
+/*
+ * One seeded draw over an explicit probability list. Zero-probability
+ * entries can never win, including when the rng returns exactly 0. The
+ * caller is responsible for probabilities that sum to 1; residue from
+ * floating-point accumulation falls to the last index.
+ */
+export function drawIndex(rng: Rng, probs: readonly number[]): number {
+  let roll = rng();
+  for (let i = 0; i < probs.length; i += 1) {
+    roll -= probs[i] as number;
+    if ((probs[i] as number) > 0 && roll <= 0) return i;
+  }
+  return probs.length - 1;
+}
