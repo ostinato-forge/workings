@@ -10,7 +10,7 @@ export function DialControls({
   onChange: (next: SamplingConfig) => void;
 }) {
   return (
-    <fieldset disabled={disabled}>
+    <fieldset disabled={disabled} className="deck">
       <legend>Sampling dials</legend>
       <label>
         temperature{" "}

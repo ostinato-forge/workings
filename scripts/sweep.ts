@@ -39,7 +39,9 @@ async function sweep(): Promise<void> {
 
   for (const expected of ["Case 1", "Case 2"]) {
     await page.getByRole("heading", { name: expected }).waitFor();
-    const run = page.getByRole("button", { name: "Lock in my guess and run" });
+    const run = page.getByRole("button", {
+      name: /Start lock your guess and run/i,
+    });
     if (await run.isEnabled()) {
       throw new Error(`${expected}: run must stay locked until a guess is committed`);
     }
@@ -65,8 +67,8 @@ async function sweep(): Promise<void> {
     .waitFor();
 
   // Back on the list, the lesson is marked complete.
-  await page.getByRole("link", { name: "All lessons" }).click();
-  await page.getByText("(complete)").waitFor();
+  await page.getByRole("link", { name: "All stages" }).click();
+  await page.getByText("complete").waitFor();
 
   await browser.close();
   if (consoleErrors.length > 0) {
