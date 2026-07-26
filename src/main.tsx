@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
+import { App } from "./shell/App";
 
 const root = document.getElementById("root");
 if (root) {
-  createRoot(root).render(<p>Workings: build scaffold.</p>);
+  createRoot(root).render(<App />);
 }
