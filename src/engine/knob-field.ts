@@ -119,3 +119,178 @@ export function lossAndGradient(
   }
   return { loss: loss / n, gradient };
 }
+
+import {
+  snapshot,
+  type EngineResult,
+  type RunRecord,
+} from "./run-record";
+
+export type KnobFieldTrainConfig = {
+  learningRate: number;
+  steps: number;
+};
+
+export type Knob = {
+  from: string;
+  to: string;
+  gradient: number;
+  delta: number;
+  value: number;
+};
+
+export type KnobFieldState = {
+  weights: Record<string, Record<string, number>>;
+  loss: number;
+};
+
+export type KnobFieldEvent = {
+  kind: "gradient-step";
+  lossBefore: number;
+  lossAfter: number;
+  knobs: Knob[];
+};
+
+export type KnobFieldRecord = RunRecord<
+  KnobFieldTrainConfig,
+  KnobFieldState,
+  KnobFieldEvent
+>;
+
+function corpusTransitions(
+  spec: KnobFieldSpec,
+  lines: readonly string[],
+):
+  | { ok: true; transitions: [string, string][] }
+  | { ok: false; problem: { what: string; fix: string } } {
+  const transitions: [string, string][] = [];
+  for (const line of lines) {
+    const tokens = line.split(" ").filter((w) => w.length > 0);
+    for (const token of tokens) {
+      if (spec.classOf[token] === undefined) {
+        return {
+          ok: false,
+          problem: {
+            what: `The corpus contains the token "${token}", which has no class in the knob field.`,
+            fix: "Assign the token to a class or remove the line that uses it.",
+          },
+        };
+      }
+    }
+    for (let i = 0; i + 1 < tokens.length; i += 1) {
+      transitions.push([tokens[i] as string, tokens[i + 1] as string]);
+    }
+  }
+  if (transitions.length === 0) {
+    return {
+      ok: false,
+      problem: {
+        what: "The corpus has no adjacent token pairs to learn from.",
+        fix: "Add at least one line with two or more tokens.",
+      },
+    };
+  }
+  return { ok: true, transitions };
+}
+
+export function trainKnobField(
+  spec: KnobFieldSpec,
+  lines: readonly string[],
+  config: KnobFieldTrainConfig,
+): EngineResult<KnobFieldRecord> {
+  const specProblem = validateKnobFieldSpec(spec);
+  if (specProblem !== null) return { ok: false, problem: specProblem };
+  if (!Number.isFinite(config.learningRate) || config.learningRate <= 0) {
+    return {
+      ok: false,
+      problem: {
+        what: "The learning rate must be a positive number.",
+        fix: "Set the learning rate above 0. Small values learn slowly; large values can overshoot.",
+      },
+    };
+  }
+  if (!Number.isInteger(config.steps) || config.steps <= 0) {
+    return {
+      ok: false,
+      problem: {
+        what: "The number of gradient steps must be a whole number, at least 1.",
+        fix: "Set it to a positive whole number.",
+      },
+    };
+  }
+  const prepared = corpusTransitions(spec, lines);
+  if (!prepared.ok) return { ok: false, problem: prepared.problem };
+  const { transitions } = prepared;
+
+  const model = createKnobField(spec);
+  let { loss } = lossAndGradient(model, transitions);
+  let state: KnobFieldState = { weights: snapshot(model.weights), loss };
+  const initial = snapshot(state);
+  const steps: KnobFieldRecord["steps"] = [];
+
+  for (let stepIndex = 0; stepIndex < config.steps; stepIndex += 1) {
+    const before = snapshot(state);
+    const { loss: lossBefore, gradient } = lossAndGradient(model, transitions);
+    const knobs: Knob[] = [];
+    for (const from of spec.classes) {
+      for (const to of spec.classes) {
+        const g = gradient[from]?.[to] as number;
+        const delta = -config.learningRate * g;
+        const value = ((model.weights[from] as Record<string, number>)[to] as number) + delta;
+        (model.weights[from] as Record<string, number>)[to] = value;
+        knobs.push({ from, to, gradient: g, delta, value });
+      }
+    }
+    const lossAfter = lossAndGradient(model, transitions).loss;
+    loss = lossAfter;
+    state = { weights: snapshot(model.weights), loss: lossAfter };
+    steps.push({
+      index: steps.length,
+      event: { kind: "gradient-step", lossBefore, lossAfter, knobs },
+      before,
+      after: snapshot(state),
+    });
+  }
+
+  return {
+    ok: true,
+    record: {
+      engine: "knob-field",
+      seed: 0,
+      config: snapshot(config),
+      initial,
+      final: snapshot(state),
+      steps,
+    },
+  };
+}
+
+export type KnobFieldReport = {
+  meanSurprise: number;
+  transitions: { prev: string; next: string; surprise: number }[];
+};
+
+export function evaluateKnobField(
+  model: KnobFieldModel,
+  lines: readonly string[],
+):
+  | { ok: true; report: KnobFieldReport }
+  | { ok: false; problem: { what: string; fix: string } } {
+  const prepared = corpusTransitions(model.spec, lines);
+  if (!prepared.ok) return { ok: false, problem: prepared.problem };
+  const transitions: KnobFieldReport["transitions"] = [];
+  let total = 0;
+  for (const [prev, next] of prepared.transitions) {
+    const { tokenProbs } = forwardKnobField(model, prev);
+    const surprise = -Math.log(tokenProbs[next] as number);
+    transitions.push({ prev, next, surprise });
+    total += surprise;
+  }
+  return {
+    ok: true,
+    report: {
+      meanSurprise: total / transitions.length,
+      transitions,
+    },
+  };
+}

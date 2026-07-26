@@ -1,8 +1,11 @@
 import { describe, expect, test } from "vitest";
+import { assertRunRecordInvariants } from "./run-record";
 import {
   createKnobField,
+  evaluateKnobField,
   forwardKnobField,
   lossAndGradient,
+  trainKnobField,
   validateKnobFieldSpec,
   type KnobFieldSpec,
 } from "./knob-field";
@@ -86,5 +89,103 @@ describe("lossAndGradient", () => {
         expect(gradient[from]?.[to]).toBeCloseTo(numeric, 6);
       }
     }
+  });
+});
+
+describe("trainKnobField", () => {
+  const lines = ["emma calls", "leo calls"];
+
+  test("records every knob at every step and lowers the loss", () => {
+    const result = trainKnobField(SPEC, lines, {
+      learningRate: 0.5,
+      steps: 10,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { record } = result;
+    assertRunRecordInvariants(record);
+    expect(record.engine).toBe("knob-field");
+    expect(record.steps).toHaveLength(10);
+    expect(record.initial.loss).toBeCloseTo(Math.log(2), 12);
+    for (const step of record.steps) {
+      expect(step.event.knobs).toHaveLength(4);
+      expect(step.event.lossAfter).toBeLessThan(step.event.lossBefore);
+      expect(step.after.loss).toBe(step.event.lossAfter);
+    }
+    expect(record.final.loss).toBeLessThan(0.2);
+  });
+
+  test("the seen class-pair knob moves up on the first step", () => {
+    const result = trainKnobField(SPEC, lines, { learningRate: 1, steps: 1 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const first = result.record.steps[0];
+    const sToV = first?.event.knobs.find((k) => k.from === "S" && k.to === "V");
+    expect(sToV?.gradient).toBeCloseTo(-0.5, 12);
+    expect(sToV?.delta).toBeCloseTo(0.5, 12);
+    expect(sToV?.value).toBeCloseTo(0.5, 12);
+  });
+
+  test("is deterministic", () => {
+    const run = () =>
+      trainKnobField(SPEC, lines, { learningRate: 0.5, steps: 5 });
+    const a = run();
+    const b = run();
+    expect(a.ok && b.ok).toBe(true);
+    if (a.ok && b.ok) {
+      expect(JSON.stringify(a.record)).toBe(JSON.stringify(b.record));
+    }
+  });
+
+  test("rejects corpus tokens outside the spec", () => {
+    const result = trainKnobField(SPEC, ["emma pets zebra"], {
+      learningRate: 0.5,
+      steps: 5,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problem.what).toContain("pets");
+  });
+
+  test("rejects invalid learning rates, step counts, and empty corpora", () => {
+    const bad = [
+      trainKnobField(SPEC, lines, { learningRate: 0, steps: 5 }),
+      trainKnobField(SPEC, lines, { learningRate: Number.NaN, steps: 5 }),
+      trainKnobField(SPEC, lines, { learningRate: 0.5, steps: 0 }),
+      trainKnobField(SPEC, lines, { learningRate: 0.5, steps: 2.5 }),
+      trainKnobField(SPEC, ["emma"], { learningRate: 0.5, steps: 5 }),
+    ];
+    for (const result of bad) {
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.problem.what.length).toBeGreaterThan(0);
+        expect(result.problem.fix.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+describe("evaluateKnobField", () => {
+  test("scores held-out lines with finite surprises", () => {
+    const trained = trainKnobField(SPEC, ["emma calls", "leo calls"], {
+      learningRate: 0.5,
+      steps: 50,
+    });
+    expect(trained.ok).toBe(true);
+    if (!trained.ok) return;
+    const model = { spec: SPEC, weights: trained.record.final.weights };
+    const result = evaluateKnobField(model, ["leo calls emma"]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.report.transitions).toHaveLength(2);
+    for (const t of result.report.transitions) {
+      expect(Number.isFinite(t.surprise)).toBe(true);
+    }
+    expect(result.report.meanSurprise).toBeGreaterThan(0);
+  });
+
+  test("rejects held-out tokens outside the spec", () => {
+    const model = createKnobField(SPEC);
+    const result = evaluateKnobField(model, ["emma pets"]);
+    expect(result.ok).toBe(false);
   });
 });
