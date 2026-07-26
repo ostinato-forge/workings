@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup A: ROUND 1 (fighting game)</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow: #ffd800; --orange: #ff8a00; --red: #ff2222;
+    --cyan: #2ee6ff; --green: #37ff5e; --magenta: #ff2da0;
+    --steel: #22283a; --dark: #0a0b12;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--dark);
+    font-family: "Press Start 2P", monospace;
+    color: #fff;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px;
+    text-transform: uppercase;
+  }
+  .crt {
+    width: min(100%, 980px);
+    background:
+      radial-gradient(130% 100% at 50% 0%, #141a2e 0%, var(--dark) 65%);
+    border: 6px solid #000;
+    outline: 4px solid var(--steel);
+    box-shadow: 0 0 60px #000 inset, 0 30px 80px #000;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .crt::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom,
+      rgba(255,255,255,.04) 0 2px, transparent 2px 5px);
+  }
+  /* ======= persistent HUD ======= */
+  .hud {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 11px; padding: 6px 4px 12px;
+    color: var(--cyan);
+    text-shadow: 2px 2px 0 #000;
+  }
+  .hud .score { color: #fff; }
+  .hud .hi { color: var(--red); }
+  /* ======= bet = the VS health bars ======= */
+  .vs-row {
+    display: grid; grid-template-columns: 1fr 64px 1fr; gap: 8px;
+    align-items: center; margin-bottom: 10px;
+  }
+  .health {
+    height: 26px; border: 3px solid #000; outline: 2px solid #fff;
+    background: linear-gradient(90deg, var(--green), #baffc9);
+    position: relative; cursor: pointer;
+  }
+  .health.right { background: linear-gradient(270deg, var(--green), #baffc9); }
+  .health.dim { filter: grayscale(.8) brightness(.5); }
+  .health span {
+    position: absolute; top: -18px; font-size: 9px; color: var(--yellow);
+    text-shadow: 2px 2px 0 #000; white-space: nowrap;
+  }
+  .health.left span { left: 0; }
+  .health.right span { right: 0; }
+  .vs {
+    font-size: 26px; text-align: center;
+    background: linear-gradient(180deg, var(--yellow), var(--orange) 60%, var(--red));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(3px 3px 0 #000);
+  }
+  .bet-caption { font-size: 8px; color: #9fb0d8; text-transform: none; margin-bottom: 14px; text-align: center;}
+  /* ======= round banner ======= */
+  .round {
+    text-align: center; margin: 8px 0 16px;
+  }
+  .round .big {
+    font-size: 44px; letter-spacing: 2px;
+    background: linear-gradient(180deg, #fff 0%, var(--yellow) 35%, var(--orange) 70%, var(--red) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(4px 4px 0 #000) drop-shadow(0 0 18px rgba(255,138,0,.6));
+    animation: slam .5s cubic-bezier(.2,2.2,.4,1) both;
+  }
+  .round .sub { font-size: 10px; color: var(--cyan); margin-top: 8px; text-shadow: 2px 2px 0 #000; }
+  @keyframes slam { from { transform: scale(3); opacity: 0; } to { transform: none; opacity: 1; } }
+  /* ======= sentence track ======= */
+  .track {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    margin: 14px 0; min-height: 42px;
+  }
+  .tile {
+    font-size: 12px; padding: 10px 12px; border: 3px solid #000;
+    background: var(--steel); color: #9fb0d8; outline: 2px solid #445;
+  }
+  .tile.won {
+    background: linear-gradient(180deg, var(--yellow), var(--orange));
+    color: #000; outline-color: #fff;
+    animation: hit .35s steps(2) both;
+  }
+  .tile.next { border-style: dashed; color: var(--yellow); outline: none;
+    animation: blink 1s steps(1) infinite; }
+  @keyframes hit { 0% { transform: scale(1.6) rotate(-6deg); } 100% { transform: none; } }
+  /* ======= odds board as the move list / power meters ======= */
+  .board { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; padding: 12px;
+    border: 3px solid #000; outline: 2px solid var(--steel); background: #10131f; }
+  .move { display: grid; grid-template-columns: 86px 1fr 40px; gap: 8px; align-items: center; font-size: 9px; }
+  .move .name { color: #fff; text-shadow: 2px 2px 0 #000; text-align: right; }
+  .move .meter { height: 14px; border: 2px solid #000; outline: 1px solid #667;
+    background: #060810; position: relative; }
+  .move .meter i { position: absolute; inset: 0; background:
+    repeating-linear-gradient(90deg, var(--cyan) 0 8px, #0ff0 8px 10px); }
+  .move.cut .meter i { background: repeating-linear-gradient(90deg, #39415e 0 8px, #0000 8px 10px); }
+  .move.winner .meter i { background: repeating-linear-gradient(90deg, var(--yellow) 0 8px, #ff8a0000 8px 10px); }
+  .move .pct { color: var(--cyan); }
+  .move.cut .pct, .move.cut .name { color: #566; }
+  .move.winner .pct { color: var(--yellow); }
+  .ko {
+    position: absolute; right: 8%; top: 34%;
+    font-size: 40px; transform: rotate(12deg);
+    background: linear-gradient(180deg, #fff, var(--red));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(4px 4px 0 #000);
+    animation: slam .4s .1s cubic-bezier(.2,2.2,.4,1) both;
+  }
+  /* ======= wins rail ======= */
+  .wins { display: flex; gap: 10px; justify-content: center; margin: 16px 0 8px; }
+  .win-card { border: 3px solid #000; outline: 2px solid var(--magenta);
+    padding: 8px 10px; font-size: 8px; background: #160a18; color: #ffb8de; }
+  .win-card b { display: block; color: #fff; font-size: 9px; margin-top: 6px; }
+  /* ======= bottom ritual strip ======= */
+  .ritual { display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 4px 4px; font-size: 10px; }
+  .press { color: var(--yellow); text-shadow: 2px 2px 0 #000; animation: blink 1s steps(1) infinite; }
+  .credit { color: #fff; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .note { font-family: monospace; text-transform: none; color: #7787a8; font-size: 12px;
+    max-width: 900px; margin: 14px auto; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <div class="crt">
+    <div class="hud">
+      <span class="score">1UP&nbsp;&nbsp;003200</span>
+      <span class="hi">HI-SCORE&nbsp;&nbsp;012750</span>
+      <span>STAGE 1-3</span>
+    </div>
+
+    <div class="round">
+      <div class="big">ROUND 2</div>
+      <div class="sub">KILL THE RAFFLE: TEMPERATURE TO ZERO</div>
+    </div>
+
+    <div class="vs-row">
+      <div class="health left" title="bet: identical"><span>3 identical endings</span></div>
+      <div class="vs">VS</div>
+      <div class="health right dim" title="bet: differ"><span>endings can differ</span></div>
+    </div>
+    <div class="bet-caption">your bet is the green bar. wrong bet drains it.</div>
+
+    <div class="track">
+      <span class="tile">mara</span><span class="tile">met</span><span class="tile">omar</span>
+      <span class="tile">at</span><span class="tile">the</span>
+      <span class="tile won">field</span><span class="tile won">.</span>
+      <span class="tile next">?</span>
+    </div>
+
+    <div class="board">
+      <div class="move winner"><span class="name">field</span><span class="meter"><i style="width:74%"></i></span><span class="pct">18%</span></div>
+      <div class="move"><span class="name">bridge</span><span class="meter"><i style="width:70%"></i></span><span class="pct">17%</span></div>
+      <div class="move"><span class="name">garden</span><span class="meter"><i style="width:46%"></i></span><span class="pct">11%</span></div>
+      <div class="move"><span class="name">station</span><span class="meter"><i style="width:44%"></i></span><span class="pct">10%</span></div>
+      <div class="move cut"><span class="name">market</span><span class="meter"><i style="width:42%"></i></span><span class="pct">10%</span></div>
+      <div class="move cut"><span class="name">bakery</span><span class="meter"><i style="width:40%"></i></span><span class="pct">9%</span></div>
+      <div class="move cut"><span class="name">library</span><span class="meter"><i style="width:36%"></i></span><span class="pct">8%</span></div>
+      <div class="move cut"><span class="name">harbor</span><span class="meter"><i style="width:34%"></i></span><span class="pct">8%</span></div>
+    </div>
+    <div class="ko">HIT!</div>
+
+    <div class="wins">
+      <div class="win-card">RUN 1<b>workshop . she smiled</b></div>
+      <div class="win-card">RUN 2<b>library . she smiled</b></div>
+      <div class="win-card">RUN 3<b>field . she waited</b></div>
+    </div>
+
+    <div class="ritual">
+      <span class="credit">CREDIT 04</span>
+      <span class="press">PRESS START TO DRAW</span>
+      <span class="credit">© WORKINGS</span>
+    </div>
+  </div>
+
+  <p class="note">
+    MOCKUP A: fighting-game energy. The bet is a VS screen with health bars;
+    each draw lands as a HIT with slam type; the wins rail tallies your runs
+    like round victories; fiery gradient display type with hard black drop
+    shadows; persistent 1UP / HI-SCORE / CREDIT chrome; blinking PRESS START.
+    Static mockup: nothing is wired.
+  </p>
+</body>
+</html>

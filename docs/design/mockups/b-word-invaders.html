@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup B: WORD INVADERS (space shooter)</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #35ff6d; --cyan: #35e5ff; --red: #ff3b3b;
+    --white: #eafcff; --dim: #1c4a2a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: #000;
+    font-family: "Press Start 2P", monospace;
+    color: var(--white);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 10px; text-transform: uppercase;
+  }
+  .screen {
+    width: min(100%, 940px); position: relative; overflow: hidden;
+    background: #000;
+    border: 6px solid #0c0c0c; outline: 3px solid #1e2b1e;
+    padding: 14px 16px 8px;
+    box-shadow: 0 24px 70px #000;
+  }
+  /* starfield */
+  .screen::before {
+    content: ""; position: absolute; inset: -100% 0 0 0; pointer-events: none;
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 34% 62%, #9ff 99%, transparent),
+      radial-gradient(2px 2px at 58% 30%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 72% 76%, #9f9 99%, transparent),
+      radial-gradient(1px 1px at 88% 12%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 46% 90%, #fff 99%, transparent),
+      radial-gradient(2px 2px at 8% 84%, #6ff 99%, transparent);
+    background-size: 100% 50%;
+    animation: drift 26s linear infinite;
+    opacity: .7;
+  }
+  @keyframes drift { to { transform: translateY(50%); } }
+  .layer { position: relative; }
+  /* HUD */
+  .hud { display: flex; justify-content: space-between; font-size: 10px; padding-bottom: 12px; }
+  .hud .p1 { color: var(--red); }
+  .hud .hi { color: var(--white); }
+  .hud .wave { color: var(--cyan); }
+  /* mission strip */
+  .mission { text-align: center; font-size: 9px; color: var(--green);
+    text-shadow: 0 0 8px rgba(53,255,109,.7); margin-bottom: 12px; }
+  /* invader formation = the distribution */
+  .formation {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+    padding: 10px 6px 18px;
+  }
+  .invader {
+    border: 2px solid var(--green); color: var(--green);
+    padding: 8px 4px; text-align: center; font-size: 8px;
+    box-shadow: 0 0 10px rgba(53,255,109,.25) inset;
+    position: relative;
+  }
+  .invader .odds { display: block; margin-top: 6px; font-size: 7px; color: var(--cyan); }
+  .invader.big { font-size: 10px; border-width: 3px; box-shadow: 0 0 16px rgba(53,255,109,.5) inset; }
+  .invader.shot {
+    border-color: var(--red); color: #fff;
+    background: rgba(255,59,59,.18);
+    animation: flash .3s steps(2) 3;
+  }
+  .invader.dead { opacity: .22; border-style: dashed; }
+  @keyframes flash { 50% { background: rgba(255,59,59,.55); } }
+  /* beam + ship */
+  .battlefield { position: relative; height: 120px; }
+  .beam {
+    position: absolute; left: 50%; bottom: 34px; width: 4px; height: 84px;
+    background: linear-gradient(to top, var(--cyan), transparent);
+    box-shadow: 0 0 12px var(--cyan);
+    animation: beam .7s steps(3) infinite;
+  }
+  @keyframes beam { 50% { opacity: .2; } }
+  .ship {
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: 4px;
+    width: 46px; height: 26px; background: var(--cyan);
+    clip-path: polygon(50% 0, 62% 40%, 100% 55%, 100% 100%, 0 100%, 0 55%, 38% 40%);
+    box-shadow: 0 0 18px rgba(53,229,255,.8);
+  }
+  .ship::after { content: ""; position: absolute; inset: 30% 42% 20%;
+    background: #003; }
+  /* captured words tray */
+  .tray-label { font-size: 8px; color: var(--cyan); margin: 8px 0 6px; }
+  .tray { display: flex; flex-wrap: wrap; gap: 8px; min-height: 34px; }
+  .word {
+    border: 2px solid var(--cyan); color: var(--white); font-size: 10px;
+    padding: 7px 9px; background: rgba(53,229,255,.08);
+  }
+  .word.ghost { color: #5a7; border-color: var(--dim); }
+  .word.landing { animation: land .5s cubic-bezier(.2,1.6,.4,1) both; border-color: var(--green); color: var(--green); }
+  @keyframes land { from { transform: translateY(-70px); opacity: 0; } to { transform: none; opacity: 1; } }
+  /* squadron rail */
+  .squadron { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .sortie { border: 2px solid #234; padding: 7px 8px; font-size: 7px; color: #8ac; }
+  .sortie b { display: block; color: var(--white); font-size: 8px; margin-top: 5px; text-transform: none; }
+  .sortie.differ { border-color: var(--red); }
+  /* bet console */
+  .console {
+    margin-top: 14px; border-top: 2px dashed #234; padding-top: 10px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    font-size: 9px;
+  }
+  .bet-chip { border: 2px solid var(--green); padding: 8px 10px; color: var(--green);
+    cursor: pointer; }
+  .bet-chip.armed { background: var(--green); color: #000; box-shadow: 0 0 16px rgba(53,255,109,.6); }
+  .fire { color: var(--red); animation: blink 1s steps(1) infinite; }
+  .lives { display: flex; gap: 6px; align-items: center; }
+  .life { width: 18px; height: 10px; background: var(--cyan);
+    clip-path: polygon(50% 0, 62% 40%, 100% 55%, 100% 100%, 0 100%, 0 55%, 38% 40%); }
+  @keyframes blink { 50% { opacity: 0; } }
+  .note { font-family: monospace; text-transform: none; color: #789; font-size: 12px;
+    max-width: 900px; margin: 14px auto; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <div class="screen">
+    <div class="layer">
+      <div class="hud">
+        <span class="p1">1UP 004150</span>
+        <span class="hi">HI-SCORE 012750</span>
+        <span class="wave">WAVE 3</span>
+      </div>
+
+      <div class="mission">MISSION: RUN 3 SORTIES. WHICH WORD WILL THE SHIP CAPTURE?</div>
+
+      <div class="formation">
+        <div class="invader big shot">field<span class="odds">18%</span></div>
+        <div class="invader big">bridge<span class="odds">17%</span></div>
+        <div class="invader">garden<span class="odds">11%</span></div>
+        <div class="invader">station<span class="odds">10%</span></div>
+        <div class="invader">market<span class="odds">10%</span></div>
+        <div class="invader dead">bakery<span class="odds">9%</span></div>
+        <div class="invader dead">library<span class="odds">8%</span></div>
+        <div class="invader dead">harbor<span class="odds">8%</span></div>
+        <div class="invader dead">orchard<span class="odds">7%</span></div>
+        <div class="invader dead">smiled<span class="odds">0.1%</span></div>
+      </div>
+
+      <div class="battlefield">
+        <div class="beam"></div>
+        <div class="ship"></div>
+      </div>
+
+      <div class="tray-label">CAPTURED SENTENCE</div>
+      <div class="tray">
+        <span class="word ghost">mara</span><span class="word ghost">met</span>
+        <span class="word ghost">omar</span><span class="word ghost">at</span>
+        <span class="word ghost">the</span>
+        <span class="word landing">field</span>
+      </div>
+
+      <div class="squadron">
+        <div class="sortie">SORTIE 1<b>workshop . she smiled</b></div>
+        <div class="sortie">SORTIE 2<b>library . she smiled</b></div>
+        <div class="sortie differ">SORTIE 3<b>field . she waited</b></div>
+      </div>
+
+      <div class="console">
+        <div class="lives"><span class="life"></span><span class="life"></span><span class="life"></span></div>
+        <div>
+          <span class="bet-chip armed">BET: CAPTURES DIFFER</span>
+          <span class="bet-chip">BET: ALL IDENTICAL</span>
+        </div>
+        <span class="fire">FIRE = START</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">
+    MOCKUP B: space-shooter energy. The distribution is the enemy formation:
+    every candidate word is an invader sized and lit by its odds; cut words go
+    dark; the ship's beam is the draw and the captured word drops into the
+    sentence tray; runs are sorties on the squadron rail; lives, waves,
+    1UP / HI-SCORE chrome, blinking FIRE prompt. Static mockup: nothing is wired.
+  </p>
+</body>
+</html>

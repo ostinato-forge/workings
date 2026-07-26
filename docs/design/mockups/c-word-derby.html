@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup C: WORD DERBY (race night)</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #17052e; --pink: #ff3caa; --gold: #ffc93c;
+    --cyan: #37e9ff; --white: #fff6e8; --lane: #23104a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background:
+      linear-gradient(180deg, #090114 0%, var(--purple) 45%, #4a0f57 72%, #a3155f 100%);
+    font-family: "Press Start 2P", monospace;
+    color: var(--white);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 10px; text-transform: uppercase;
+  }
+  .stadium {
+    width: min(100%, 960px); position: relative; overflow: hidden;
+    border: 6px solid #000; outline: 3px solid #52128a;
+    padding: 14px 16px; box-shadow: 0 26px 80px #000;
+    background:
+      linear-gradient(180deg, rgba(9,1,20,.85), rgba(23,5,46,.9)),
+      repeating-linear-gradient(180deg, transparent 0 44px, rgba(55,233,255,.08) 44px 45px),
+      repeating-linear-gradient(90deg, transparent 0 44px, rgba(55,233,255,.06) 44px 45px);
+  }
+  .hud { display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 10px; }
+  .hud .odds-night { color: var(--cyan); }
+  .hud .purse { color: var(--gold); }
+  .marquee {
+    text-align: center; margin: 4px 0 4px;
+    font-size: 34px;
+    background: linear-gradient(180deg, #fff 10%, var(--gold) 45%, #b8860b 75%, #fff 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(3px 3px 0 #000) drop-shadow(0 0 22px rgba(255,201,60,.5));
+    letter-spacing: 3px;
+  }
+  .subtitle { text-align: center; font-size: 8px; color: var(--pink);
+    text-shadow: 2px 2px 0 #000; margin-bottom: 14px; }
+  /* announcer ticker */
+  .ticker {
+    border: 3px solid #000; outline: 2px solid var(--pink);
+    background: #000; color: var(--gold); font-size: 10px;
+    padding: 9px 10px; margin-bottom: 14px; white-space: nowrap; overflow: hidden;
+  }
+  .ticker span { display: inline-block; animation: scroll 12s linear infinite; }
+  @keyframes scroll { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+  /* the race: lanes = candidates, distance = probability */
+  .course { position: relative; border: 3px solid #000; outline: 2px solid #52128a;
+    background: rgba(0,0,0,.35); padding: 12px 10px; }
+  .finish {
+    position: absolute; top: 0; bottom: 0; right: 84px; width: 14px;
+    background:
+      repeating-conic-gradient(#fff 0% 25%, #000 0% 50%) 0 0 / 14px 14px;
+    opacity: .9;
+  }
+  .lane { display: grid; grid-template-columns: 84px 1fr 64px; align-items: center;
+    gap: 8px; padding: 5px 0; font-size: 8px; }
+  .lane .runner-name { color: var(--white); text-align: right; text-shadow: 2px 2px 0 #000; }
+  .lane .strip { position: relative; height: 22px; background: var(--lane);
+    border: 2px solid #000; overflow: hidden; }
+  .lane .strip::after { content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0 26px, rgba(255,255,255,.05) 26px 28px); }
+  .racer {
+    position: absolute; top: 2px; bottom: 2px; left: 0;
+    background: linear-gradient(90deg, transparent, var(--cyan));
+    display: flex; align-items: center; justify-content: flex-end;
+  }
+  .racer i {
+    width: 18px; height: 14px; margin-right: 2px; background: var(--cyan);
+    clip-path: polygon(0 50%, 30% 0, 100% 20%, 78% 50%, 100% 80%, 30% 100%);
+    filter: drop-shadow(0 0 8px var(--cyan));
+  }
+  .lane.leader .racer { background: linear-gradient(90deg, transparent, var(--gold)); }
+  .lane.leader .racer i { background: var(--gold); filter: drop-shadow(0 0 10px var(--gold)); }
+  .lane.leader .runner-name { color: var(--gold); }
+  .lane.scratched .racer { background: linear-gradient(90deg, transparent, #444); }
+  .lane.scratched .racer i { background: #555; filter: none; }
+  .lane.scratched .runner-name, .lane.scratched .odds { color: #766; text-decoration: line-through; }
+  .lane .odds { color: var(--cyan); }
+  .lane.leader .odds { color: var(--gold); }
+  .photo {
+    position: absolute; right: 70px; top: -6px; font-size: 8px;
+    background: var(--gold); color: #000; padding: 4px 6px; transform: rotate(8deg);
+    border: 2px solid #000;
+    animation: pop .4s cubic-bezier(.2,2,.4,1) both;
+  }
+  @keyframes pop { from { transform: scale(0) rotate(8deg); } }
+  /* sentence = the results board */
+  .results-label { font-size: 8px; color: var(--cyan); margin: 14px 0 6px; }
+  .results { display: flex; flex-wrap: wrap; gap: 8px; }
+  .placed {
+    border: 2px solid #000; outline: 2px solid #52128a; font-size: 10px;
+    padding: 8px 10px; background: #0d0620; color: #cbb8ff;
+  }
+  .placed.won { outline-color: var(--gold); color: var(--gold);
+    animation: pop .4s cubic-bezier(.2,2,.4,1) both; }
+  /* leaderboard rail */
+  .board { margin-top: 14px; border: 3px solid #000; outline: 2px solid var(--pink);
+    background: #000; padding: 8px 10px; }
+  .board h3 { font-size: 8px; color: var(--pink); margin-bottom: 8px; }
+  .row { display: flex; justify-content: space-between; font-size: 8px; padding: 4px 0;
+    color: var(--white); }
+  .row .medal { color: var(--gold); }
+  .row b { text-transform: none; font-weight: normal; color: var(--cyan); }
+  /* bet window + start */
+  .betting { display: flex; justify-content: space-between; align-items: center;
+    margin-top: 14px; gap: 10px; font-size: 9px; flex-wrap: wrap; }
+  .slip { border: 3px solid #000; outline: 2px solid var(--gold); padding: 9px 11px;
+    background: #1c0a05; color: var(--gold); cursor: pointer; }
+  .slip.picked { background: var(--gold); color: #000; box-shadow: 0 0 18px rgba(255,201,60,.6); }
+  .gate { color: var(--pink); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .note { font-family: monospace; text-transform: none; color: #b9a; font-size: 12px;
+    max-width: 900px; margin: 14px auto; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <div class="stadium">
+    <div class="hud">
+      <span class="odds-night">RACE 3 OF 3</span>
+      <span class="purse">PURSE 003200</span>
+      <span>CREDIT 04</span>
+    </div>
+
+    <div class="marquee">WORD DERBY</div>
+    <div class="subtitle">STAGE 1: WHY THE SAME QUESTION GETS DIFFERENT ANSWERS</div>
+
+    <div class="ticker"><span>AND DOWN THE STRETCH THEY COME... FIELD TAKES RACE 3 BY A LENGTH... THREE RACES, THREE DIFFERENT WINNERS... THE RAFFLE IS REAL, FOLKS...</span></div>
+
+    <div class="course">
+      <div class="finish"></div>
+      <div class="photo">PHOTO!</div>
+      <div class="lane leader">
+        <span class="runner-name">field</span>
+        <span class="strip"><span class="racer" style="width:88%"><i></i></span></span>
+        <span class="odds">18%</span>
+      </div>
+      <div class="lane">
+        <span class="runner-name">bridge</span>
+        <span class="strip"><span class="racer" style="width:84%"><i></i></span></span>
+        <span class="odds">17%</span>
+      </div>
+      <div class="lane">
+        <span class="runner-name">garden</span>
+        <span class="strip"><span class="racer" style="width:56%"><i></i></span></span>
+        <span class="odds">11%</span>
+      </div>
+      <div class="lane">
+        <span class="runner-name">station</span>
+        <span class="strip"><span class="racer" style="width:52%"><i></i></span></span>
+        <span class="odds">10%</span>
+      </div>
+      <div class="lane scratched">
+        <span class="runner-name">bakery</span>
+        <span class="strip"><span class="racer" style="width:47%"><i></i></span></span>
+        <span class="odds">9%</span>
+      </div>
+      <div class="lane scratched">
+        <span class="runner-name">library</span>
+        <span class="strip"><span class="racer" style="width:43%"><i></i></span></span>
+        <span class="odds">8%</span>
+      </div>
+    </div>
+
+    <div class="results-label">RESULTS BOARD (THE SENTENCE SO FAR)</div>
+    <div class="results">
+      <span class="placed">mara</span><span class="placed">met</span>
+      <span class="placed">omar</span><span class="placed">at</span>
+      <span class="placed">the</span><span class="placed won">field</span>
+    </div>
+
+    <div class="board">
+      <h3>TONIGHT'S RACES</h3>
+      <div class="row"><span class="medal">RACE 1</span><b>workshop . she smiled</b><span>7-2</span></div>
+      <div class="row"><span class="medal">RACE 2</span><b>library . she smiled</b><span>9-1</span></div>
+      <div class="row"><span class="medal">RACE 3</span><b>field . she waited</b><span>5-1</span></div>
+    </div>
+
+    <div class="betting">
+      <div>
+        <span class="slip picked">SLIP: WINNERS DIFFER</span>
+        <span class="slip">SLIP: SAME WINNER x3</span>
+      </div>
+      <span class="gate">START = OPEN THE GATE</span>
+    </div>
+  </div>
+
+  <p class="note">
+    MOCKUP C: race-night energy. Every candidate word is a runner in a lane;
+    lane distance is its probability; cut words are scratched entries; the
+    draw is the race, the winner hits the checkered line and lands on the
+    results board; your runs are tonight's races on the leaderboard; the bet
+    is a betting slip; gold-chrome marquee type over a sunset grid, announcer
+    ticker on top. Static mockup: nothing is wired.
+  </p>
+</body>
+</html>
