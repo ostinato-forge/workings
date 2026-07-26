@@ -1,4 +1,5 @@
 import type { TokenMachineConfig, TokenMachineRecord } from "../engine/token-machine";
+import type { SamplingConfig } from "../engine/sampling";
 import type { TokenizerLike } from "../engine/tokenizer";
 import type { TransformerModel } from "../engine/transformer";
 
@@ -19,22 +20,34 @@ export type TeachBeat = {
 };
 
 /*
- * A predict beat is the interaction grammar in one unit: setup, a
- * committed guess, one or two engine runs, and evidence. With two configs
- * the derivation sees both records, which supports run-comparison
- * questions (same seed or different seeds, same dials or different
- * dials). The correct answer is never stored; deriveCorrectOption
- * computes it from the records at play time and test time alike.
+ * A play beat is a goal, a dial constraint, a bet, and the learner's own
+ * runs. The learner sets the dials (locked fields are fixed by the beat;
+ * free fields must satisfy `requires` before START enables, with the
+ * requirement stated in plain language). Each press of START consumes the
+ * next seed from `seeds`, so the sequence of records is deterministic and
+ * every bet is derivable at test time from the exact records the learner
+ * will produce. The bet settles once `minRuns` runs have accumulated.
  */
-export type PredictBeat = {
-  kind: "predict";
+export type DialRequirement = {
+  description: string;
+  locked: Partial<SamplingConfig>;
+  satisfied: (sampling: SamplingConfig) => boolean;
+};
+
+export type PlayBeat = {
+  kind: "play";
   id: string;
-  setup: string;
-  question: string;
-  options: PredictionOption[];
-  configs: [TokenMachineConfig] | [TokenMachineConfig, TokenMachineConfig];
-  deriveCorrectOption: (records: TokenMachineRecord[]) => string;
-  showEvidence: "first" | "all";
+  goal: string;
+  prompt: string;
+  maxNewTokens: number;
+  seeds: number[];
+  minRuns: number;
+  requires: DialRequirement;
+  bet: {
+    question: string;
+    options: PredictionOption[];
+    deriveCorrectOption: (records: TokenMachineRecord[]) => string;
+  };
 };
 
 export type RecapBeat = {
@@ -51,7 +64,7 @@ export type FreePlayBeat = {
   baseConfig: TokenMachineConfig;
 };
 
-export type LessonBeat = TeachBeat | PredictBeat | RecapBeat | FreePlayBeat;
+export type LessonBeat = TeachBeat | PlayBeat | RecapBeat | FreePlayBeat;
 
 export type TokenMachineLesson = {
   id: string;
