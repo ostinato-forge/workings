@@ -11,5 +11,5 @@
     "resolveJsonModule": true,
     "types": ["vitest/globals", "node"]
   },
-  "include": ["src", "models", "vite.config.ts"]
+  "include": ["src", "models", "scripts", "vite.config.ts"]
 }
