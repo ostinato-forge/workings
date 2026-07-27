@@ -1,0 +1,167 @@
+:root {
+  --arcade-phosphor: #7ee2a8;
+  --arcade-purple: #c084fc;
+  --fighter-gold: #d4a830;
+  --stage-green: #33cc33;
+  --stop-red: #ff3355;
+  --void: #060912;
+  --monitor-black: #050510;
+  --bezel-light: #3a3a48;
+  --bezel-dark: #141420;
+  --metal-light: #2a2a3a;
+  --metal-dark: #12121e;
+
+  --font-arcade: 'Press Start 2P', monospace;
+  --font-ui: 'IBM Plex Mono', monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--void);
+  color: var(--arcade-phosphor);
+  font-family: var(--font-ui);
+}
+
+.wish-cabinet-root {
+  justify-content: center;
+}
+
+.wish-cabinet-shell {
+  height: calc(100svh - 40px);
+  max-height: 920px;
+}
+
+.wish-screen-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.wish-input-screen,
+.wish-stage-scroll {
+  scrollbar-color: rgba(126, 226, 168, 0.22) rgba(0, 0, 0, 0.16);
+  scrollbar-width: thin;
+}
+
+.wish-focus-prompt {
+  overflow: hidden;
+}
+
+.wish-input-screen::-webkit-scrollbar,
+.wish-stage-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wish-input-screen::-webkit-scrollbar-track,
+.wish-stage-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.wish-input-screen::-webkit-scrollbar-thumb,
+.wish-stage-scroll::-webkit-scrollbar-thumb {
+  background: rgba(126, 226, 168, 0.22);
+  border-radius: 999px;
+}
+
+@media (max-height: 900px) {
+  .wish-cabinet-root {
+    --wc-root-padding: 12px 0;
+    justify-content: flex-start;
+  }
+
+  .wish-cabinet-shell {
+    height: calc(100svh - 24px);
+  }
+}
+
+@media (max-height: 800px) {
+  .wish-cabinet-root {
+    --wc-root-padding: 8px 0;
+  }
+
+  .wish-marquee {
+    --wc-marquee-padding: 12px 24px 9px;
+    --wc-marquee-title-size: 18px;
+    --wc-marquee-subtitle-size: 6px;
+  }
+
+  .wish-monitor-frame {
+    --wc-monitor-padding: 12px 16px;
+    --wc-speaker-margin-bottom: 12px;
+    --wc-speaker-margin-x: -16px;
+    --wc-speaker-margin-top: -12px;
+  }
+
+  .wish-input-screen {
+    --wc-wish-textarea-padding: 12px 16px;
+    --wc-wish-textarea-line-height: 1.45;
+    --wc-wish-textarea-min-height: 64px;
+    padding-bottom: 16px;
+    padding-top: 16px;
+  }
+
+  .wish-focus-card {
+    --wc-focus-card-padding: 9px 10px;
+  }
+
+  .wish-focus-description {
+    display: none !important;
+  }
+
+  .wish-focus-prompt {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .wish-control-deck {
+    --wc-control-stage-padding: 12px 8px 18px;
+    --wc-control-plate-padding: 12px 28px;
+    --wc-control-plate-gap: 28px;
+  }
+
+  .wish-cabinet-bottom {
+    --wc-bottom-padding: 10px 24px;
+  }
+}
+
+@media (max-height: 700px) {
+  .wish-cabinet-shell {
+    --wc-cabinet-scale: 0.94;
+  }
+
+  .wish-input-screen {
+    --wc-wish-textarea-min-height: 60px;
+    padding-bottom: 14px;
+    padding-top: 14px;
+  }
+
+  .wish-control-deck {
+    --wc-control-stage-padding: 8px 8px 14px;
+    --wc-control-plate-padding: 10px 24px;
+    --wc-control-plate-gap: 24px;
+  }
+
+  .wish-cabinet-bottom {
+    --wc-bottom-padding: 8px 22px;
+  }
+}
+
+@media (max-height: 620px) {
+  .wish-cabinet-shell {
+    --wc-cabinet-scale: 0.84;
+  }
+}
