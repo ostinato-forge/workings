@@ -30,6 +30,8 @@ const BANNED: string[] = [
   "little app",
   "little something",
   "delightful",
+  "bet",
+  "wager",
 ];
 
 export function lintCopy(strings: readonly string[]): string[] {

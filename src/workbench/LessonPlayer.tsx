@@ -6,6 +6,7 @@ import {
 import type { SamplingConfig } from "../engine/sampling";
 import type { EngineProblem } from "../engine/run-record";
 import type { PlayBeat, TokenMachineLesson } from "../lessons/types";
+import type { DeckProps } from "../shell/cabinet/ControlDeck";
 import { DialControls } from "./DialControls";
 import { OddsBoard } from "./OddsBoard";
 import { ProbabilityBars } from "./ProbabilityBars";
@@ -25,10 +26,12 @@ function PlaySurface({
   lesson,
   beat,
   onSettled,
+  onDeckChange,
 }: {
   lesson: TokenMachineLesson;
   beat: PlayBeat;
   onSettled: (records: TokenMachineRecord[]) => void;
+  onDeckChange: (deck: DeckProps | null) => void;
 }) {
   const [sampling, setSampling] = useState<SamplingConfig>({
     temperature: 1,
@@ -89,25 +92,53 @@ function PlaySurface({
     if (next.length >= beat.minRuns) onSettled(next);
   };
 
+  useEffect(() => {
+    const lockedDials = Object.keys(beat.requires.locked).filter(
+      (key): key is "temperature" | "topK" =>
+        key === "temperature" || key === "topK",
+    );
+
+    onDeckChange({
+      activated: true,
+      temperature: sampling.temperature,
+      topK: sampling.topK ?? null,
+      dialsEnabled: !settled,
+      lockedDials,
+      canStart: betChoice !== null && satisfied && seedsLeft,
+      startSublabel:
+        records.length === 0
+          ? "lock your prediction and run"
+          : `run again (${records.length} of ${beat.minRuns} needed)`,
+      onTemperature: (next) =>
+        setSampling((current) => ({ ...current, temperature: next })),
+      onTopK: (next) =>
+        setSampling((current) => ({ ...current, topK: next ?? undefined })),
+      onStart: runOnce,
+      onStop: () => {
+        if (timer.current !== null) {
+          clearInterval(timer.current);
+          timer.current = null;
+        }
+      },
+    });
+  }, [
+    beat,
+    betChoice,
+    onDeckChange,
+    records.length,
+    sampling,
+    satisfied,
+    seedsLeft,
+    settled,
+  ]);
+
   return (
     <div>
       <p className="panel">{beat.goal}</p>
       <p className={satisfied ? "requirement" : "requirement unmet"}>
         {beat.requires.description}
-        {satisfied ? "" : " Adjust the dials to continue."}
+        {satisfied ? "" : " Use the TEMPERATURE knob on the deck."}
       </p>
-      <DialControls
-        value={sampling}
-        disabled={false}
-        lockedKeys={
-          Object.keys(beat.requires.locked) as (
-            | "temperature"
-            | "topK"
-            | "topP"
-          )[]
-        }
-        onChange={setSampling}
-      />
       <fieldset>
         <legend>{beat.bet.question}</legend>
         {beat.bet.options.map((option) => (
@@ -132,7 +163,7 @@ function PlaySurface({
           Start
           <span className="start-sublabel">
             {records.length === 0
-              ? "lock your bet and run"
+              ? "lock your prediction and run"
               : `run again (${records.length} of ${beat.minRuns} needed)`}
           </span>
         </button>
@@ -149,7 +180,7 @@ function PlaySurface({
             </div>
           ) : (
             <p className="evidence-meta">
-              The machine is idle. Lock your bet and press START.
+              The machine is idle. Lock your prediction and press START.
             </p>
           )}
         </div>
@@ -167,8 +198,8 @@ function PlaySurface({
       {settled && betChoice !== null ? (
         <p aria-live="polite" className="verdict">
           {beat.bet.deriveCorrectOption(records) === betChoice
-            ? "Your bet matches what your runs show."
-            : "Your bet does not match what your runs show."}{" "}
+            ? "Your prediction matches what your runs show."
+            : "Your prediction does not match what your runs show."}{" "}
           {
             beat.bet.options.find(
               (o) => o.id === beat.bet.deriveCorrectOption(records),
@@ -184,10 +215,12 @@ function PlaySurface({
 export function LessonPlayer({
   lesson,
   stageNumber,
+  onDeckChange,
   onComplete,
 }: {
   lesson: TokenMachineLesson;
   stageNumber: number;
+  onDeckChange: (deck: DeckProps | null) => void;
   onComplete: () => void;
 }) {
   const [beatIndex, setBeatIndex] = useState(0);
@@ -227,6 +260,35 @@ export function LessonPlayer({
     }
   };
 
+  useEffect(() => {
+    if (beat?.kind === "free-play") {
+      onDeckChange({
+        activated: true,
+        temperature: freeSampling.temperature,
+        topK: freeSampling.topK ?? null,
+        dialsEnabled: true,
+        lockedDials: [],
+        canStart: true,
+        startSublabel: "run with these dials",
+        onTemperature: (next) =>
+          setFreeSampling((current) => ({
+            ...current,
+            temperature: next,
+          })),
+        onTopK: (next) =>
+          setFreeSampling((current) => ({
+            ...current,
+            topK: next ?? undefined,
+          })),
+        onStart: runFree,
+        onStop: () => undefined,
+      });
+      return;
+    }
+
+    if (beat?.kind !== "play") onDeckChange(null);
+  }, [beat, freeSampling, onDeckChange]);
+
   if (beat === undefined) return <p>The lesson has no more beats.</p>;
 
   return (
@@ -255,6 +317,7 @@ export function LessonPlayer({
             key={beat.id}
             lesson={lesson}
             beat={beat}
+            onDeckChange={onDeckChange}
             onSettled={() =>
               setSettledBeats((prev) => ({ ...prev, [beat.id]: true }))
             }
