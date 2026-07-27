@@ -60,6 +60,79 @@ body,
   overflow: hidden;
 }
 
+.ctl-knob {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.knob-face {
+  background:
+    radial-gradient(
+      circle at 32% 25%,
+      rgba(255, 255, 255, 0.28),
+      transparent 40%
+    ),
+    conic-gradient(#2c2c3e, #1a1a28, #2c2c3e, #1a1a28, #2c2c3e);
+  border: 2px solid #0c0c14;
+  border-radius: 50%;
+  box-shadow:
+    0 5px 0 #08080f,
+    0 8px 16px rgba(0, 0, 0, 0.55);
+  cursor: ns-resize;
+  height: 58px;
+  position: relative;
+  touch-action: none;
+  width: 58px;
+}
+
+.knob-face:focus-visible {
+  outline: 2px solid var(--arcade-phosphor);
+  outline-offset: 4px;
+}
+
+.knob-indicator {
+  background: var(--arcade-phosphor);
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(126, 226, 168, 0.7);
+  height: 16px;
+  left: 50%;
+  position: absolute;
+  top: 5px;
+  transform-origin: 50% 24px;
+  width: 3px;
+}
+
+.knob-label,
+.knob-value {
+  color: var(--arcade-phosphor);
+  font-family: var(--font-arcade);
+}
+
+.knob-label {
+  font-size: 7px;
+  opacity: 0.6;
+}
+
+.knob-value {
+  font-size: 6px;
+  opacity: 0.7;
+}
+
+.knob-disabled {
+  cursor: default;
+}
+
+.knob-disabled .knob-indicator {
+  box-shadow: none;
+}
+
+.knob-disabled ~ .knob-label,
+.knob-disabled ~ .knob-value {
+  opacity: 0.2;
+}
+
 .wish-input-screen::-webkit-scrollbar,
 .wish-stage-scroll::-webkit-scrollbar {
   width: 8px;
