@@ -92,7 +92,7 @@ export const samplingDialsLesson: TokenMachineLesson = {
           sampling.topP === undefined,
       },
       bet: {
-        question: "Temperature 0 always takes the highest-scoring word. Your bet for three runs:",
+        question: "Temperature 0 always takes the highest-scoring word. Your prediction for three runs:",
         options: [
           { id: "identical", label: "Three identical endings" },
           { id: "differ", label: "The endings can still differ" },
