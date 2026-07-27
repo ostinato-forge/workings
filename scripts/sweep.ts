@@ -33,7 +33,7 @@ async function axeCheck(page: Page, where: string): Promise<void> {
 
 async function pressUntilFocused(
   page: Page,
-  role: "button" | "radio" | "link",
+  role: "button" | "radio" | "link" | "slider",
   name: RegExp,
   maxTabs: number,
 ): Promise<void> {
@@ -48,9 +48,45 @@ async function pressUntilFocused(
   throw new Error(`never reached ${role} ${name} by keyboard`);
 }
 
+async function waitForSliderEnabled(page: Page, name: RegExp): Promise<void> {
+  const slider = page.getByRole("slider", { name }).first();
+  await slider.waitFor();
+  const handle = await slider.elementHandle();
+  if (handle === null) throw new Error(`missing slider ${name}`);
+  await page.waitForFunction(
+    (element) => element.getAttribute("aria-disabled") === "false",
+    handle,
+  );
+  await handle.dispose();
+}
+
+async function pressSliderKey(
+  page: Page,
+  name: RegExp,
+  key: string,
+  expected: number,
+): Promise<void> {
+  await page.keyboard.press(key);
+  const slider = page.getByRole("slider", { name }).first();
+  const deadline = Date.now() + 3_000;
+  while (Date.now() < deadline) {
+    const value = Number(await slider.getAttribute("aria-valuenow"));
+    if (value === expected) return;
+    await page.waitForTimeout(25);
+  }
+  throw new Error(`slider ${name} did not reach ${expected} after ${key}`);
+}
+
 async function keyboardPlay(page: Page): Promise<void> {
   await page.goto(URL);
   if ((await page.title()) !== "Workings") throw new Error("wrong page title");
+  await page
+    .getByRole("button", { name: /insert coin|coin/i })
+    .waitFor();
+  await axeCheck(page, "attract screen");
+  await pressUntilFocused(page, "button", /insert coin|coin/i, 10);
+  await page.keyboard.press("Enter");
+  await page.getByRole("link", { name: /Why the same question/ }).waitFor();
   await axeCheck(page, "stage list");
 
   await pressUntilFocused(page, "link", /Why the same question/, 10);
@@ -62,22 +98,39 @@ async function keyboardPlay(page: Page): Promise<void> {
     if (await page.getByRole("heading", { name: "Free play" }).isVisible().catch(() => false)) {
       break;
     }
-    const start = page.getByRole("button", { name: /Start lock your bet and run|Start run again/i });
+    const start = page.getByRole("button", {
+      name: /Start lock your prediction and run|Start run again/i,
+    });
     if (await start.isVisible().catch(() => false)) {
       // Play beat. Satisfy the dial requirement when unmet.
       const unmet = await page.locator(".requirement.unmet").isVisible().catch(() => false);
       if (unmet) {
         const requirement = await page.locator(".requirement").innerText();
-        const temperature = page.getByLabel(/temperature/);
-        // Number inputs are filled by accessible label because key-event typing
-        // is flaky across engines. Navigation, bets, START, and Continue remain
-        // keyboard-driven.
         if (/temperature to exactly 0|temperature dial down to 0/i.test(requirement)) {
-          await temperature.fill("0");
+          await waitForSliderEnabled(page, /temperature/i);
+          await pressUntilFocused(page, "slider", /temperature/i, 25);
+          await pressSliderKey(page, /temperature/i, "Home", 0);
         } else if (/top-k at 3/i.test(requirement)) {
-          await temperature.fill("1");
-          await page.getByLabel(/top-k/).fill("3");
+          await waitForSliderEnabled(page, /temperature/i);
+          await pressUntilFocused(page, "slider", /temperature/i, 25);
+          await pressSliderKey(page, /temperature/i, "Home", 0);
+          for (let step = 1; step <= 10; step += 1) {
+            await pressSliderKey(
+              page,
+              /temperature/i,
+              "ArrowRight",
+              step / 10,
+            );
+          }
+          await waitForSliderEnabled(page, /top-k/i);
+          await pressUntilFocused(page, "slider", /top-k/i, 5);
+          await pressSliderKey(page, /top-k/i, "End", 5);
+          await pressSliderKey(page, /top-k/i, "ArrowLeft", 4);
+          await pressSliderKey(page, /top-k/i, "ArrowLeft", 3);
         }
+        await page
+          .locator(".requirement.unmet")
+          .waitFor({ state: "detached", timeout: 3_000 });
       }
       if (await page.getByRole("radio").first().isEnabled().catch(() => false)) {
         await pressUntilFocused(page, "radio", /.*/, 20);
@@ -120,6 +173,10 @@ async function viewportCheck(
 ): Promise<void> {
   await page.setViewportSize({ width, height });
   await page.goto(URL);
+  const coin = page.getByRole("button", { name: /insert coin|coin/i });
+  await coin.waitFor();
+  await coin.click();
+  await page.getByRole("link", { name: /Why the same question/ }).waitFor();
   await page.getByRole("link", { name: /Why the same question/ }).click();
   await page.getByRole("heading", { name: /Why the same question/ }).waitFor();
   await page.getByRole("button", { name: /^Continue$/ }).click();
@@ -143,13 +200,17 @@ async function viewportCheck(
 async function reducedMotionCheck(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(URL);
+  const coin = page.getByRole("button", { name: /insert coin|coin/i });
+  await coin.waitFor();
+  await coin.click();
+  await page.getByRole("link", { name: /Why the same question/ }).waitFor();
   await page.getByRole("link", { name: /Why the same question/ }).click();
   await page.getByRole("heading", { name: /Why the same question/ }).waitFor();
   await page.getByRole("button", { name: /Continue/ }).click();
   await page.getByRole("button", { name: /Continue/ }).click();
   await page.getByRole("radio").first().check();
   await page
-    .getByRole("button", { name: /Start lock your bet and run/i })
+    .getByRole("button", { name: /Start lock your prediction and run/i })
     .click();
   await page
     .getByRole("list", { name: "your runs so far" })
