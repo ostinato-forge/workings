@@ -57,7 +57,7 @@ export const samplingDialsLesson: TokenMachineLesson = {
         locked: { temperature: 1 },
         satisfied: (sampling) => sampling.temperature === 1,
       },
-      bet: {
+      prediction: {
         question: "Before your first run: three runs, same prompt every time. What do you expect on the rail?",
         options: [
           { id: "identical", label: "Three identical endings" },
@@ -91,7 +91,7 @@ export const samplingDialsLesson: TokenMachineLesson = {
           sampling.topK === undefined &&
           sampling.topP === undefined,
       },
-      bet: {
+      prediction: {
         question: "Temperature 0 always takes the highest-scoring word. Your prediction for three runs:",
         options: [
           { id: "identical", label: "Three identical endings" },
@@ -123,7 +123,7 @@ export const samplingDialsLesson: TokenMachineLesson = {
         satisfied: (sampling) =>
           sampling.temperature === 1 && sampling.topK === 3,
       },
-      bet: {
+      prediction: {
         question: "On each draw, how many words will be able to win?",
         options: [
           { id: "one", label: "Only the top word" },

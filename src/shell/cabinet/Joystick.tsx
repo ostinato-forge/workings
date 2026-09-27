@@ -1,81 +1,91 @@
-export default function Joystick({ activated = true }: { activated?: boolean }) {
-  return (
-    <div className="flex flex-col items-center relative">
-      <div className="w-[76px] h-[76px] relative flex items-center justify-center">
-        <div
-          className="w-[70px] h-[70px] rounded-full flex items-center justify-center flex-col"
-          style={{
-            background:
-              "radial-gradient(ellipse at 40% 30%, rgba(60,80,120,0.5), transparent 60%), linear-gradient(180deg, #1e2e48, #141e34)",
-            border: "2px solid #2a3a58",
-            boxShadow:
-              "inset 0 3px 6px rgba(0,0,0,0.6), inset 0 -1px 3px rgba(60,80,120,0.1), 0 3px 10px rgba(0,0,0,0.5)",
-          }}
-        >
-          <div
-            className="w-8 h-8 rounded-full relative -top-[5px]"
-            style={{
-              background:
-                "radial-gradient(ellipse at 35% 25%, rgba(255,255,255,0.45) 0%, transparent 45%), radial-gradient(ellipse at 50% 50%, #2a2a3a 0%, #141420 100%)",
-              border: "1px solid #3a3a4a",
-              boxShadow:
-                "0 3px 8px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.05)",
-            }}
-          />
-          <div
-            className="w-2.5 h-7 rounded-[5px]"
-            style={{
-              background: "linear-gradient(90deg, #2a2a3a, #444458, #2a2a3a)",
-              boxShadow:
-                "inset 1px 0 2px rgba(255,255,255,0.05), 0 0 4px rgba(0,0,0,0.5)",
-              marginTop: "-18px",
-            }}
-          />
-        </div>
-        <div className="absolute inset-[-6px] pointer-events-none">
-          <span
-            className="absolute font-arcade top-[-4px] left-1/2 -translate-x-1/2"
-            style={{ fontSize: "5px", color: activated ? "rgba(126,226,168,0.15)" : "rgba(126,226,168,0.05)", transition: "color 1.2s ease" }}
-          >
-            ▲
-          </span>
-          <span
-            className="absolute font-arcade bottom-[-4px] left-1/2 -translate-x-1/2"
-            style={{ fontSize: "5px", color: activated ? "rgba(126,226,168,0.15)" : "rgba(126,226,168,0.05)", transition: "color 1.2s ease" }}
-          >
-            ▼
-          </span>
-          <span
-            className="absolute font-arcade left-[-10px] top-1/2 -translate-y-1/2"
-            style={{ fontSize: "5px", color: activated ? "rgba(126,226,168,0.15)" : "rgba(126,226,168,0.05)", transition: "color 1.2s ease" }}
-          >
-            ◄
-          </span>
-          <span
-            className="absolute font-arcade right-[-10px] top-1/2 -translate-y-1/2"
-            style={{ fontSize: "5px", color: activated ? "rgba(126,226,168,0.15)" : "rgba(126,226,168,0.05)", transition: "color 1.2s ease" }}
-          >
-            ►
-          </span>
-        </div>
-      </div>
-      <span
-        className="font-arcade mt-2 tracking-[0.15em]"
-        style={{
-          fontSize: "7px",
-          color: activated ? "rgba(126,226,168,0.45)" : "rgba(126,226,168,0.12)",
-          textShadow: activated ? "0 0 6px rgba(126,226,168,0.1)" : "none",
-          transition: "color 1.2s ease, text-shadow 1.2s ease",
-        }}
-      >
-        NAVIGATE
-      </span>
-      <span
-        className="font-ui mt-0.5"
-        style={{ fontSize: "8px", color: activated ? "rgba(126,226,168,0.2)" : "rgba(126,226,168,0.06)", transition: "color 1.2s ease" }}
-      >
-        ↑↓←→
-      </span>
+import { useEffect, useId, useRef, useState } from "react";
+
+type Direction = "up" | "down" | "left" | "right";
+
+export default function Joystick({ onBack, onNext }: { onBack?: () => void; onNext?: () => void }) {
+  const helpId = useId();
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const origin = useRef<{ x: number; y: number; pointer: number } | null>(null);
+  const direction = useRef<Direction | null>(null);
+  const repeat = useRef<ReturnType<typeof setInterval> | null>(null);
+  const actions = useRef({ onBack, onNext });
+  actions.current = { onBack, onNext };
+
+  const stopRepeat = () => {
+    if (repeat.current !== null) clearInterval(repeat.current);
+    repeat.current = null;
+  };
+  const center = () => {
+    stopRepeat();
+    origin.current = null;
+    direction.current = null;
+    setOffset({ x: 0, y: 0 });
+  };
+  useEffect(() => () => stopRepeat(), []);
+
+  const move = (next: Direction) => {
+    if (next === "left") actions.current.onBack?.();
+    else if (next === "right") actions.current.onNext?.();
+    else {
+      const main = document.querySelector(".wish-screen-content > main");
+      if (main) main.scrollBy({ top: (next === "up" ? -1 : 1) * Math.max(60, main.clientHeight * 0.22), behavior: "instant" });
+    }
+  };
+  const engage = (next: Direction | null) => {
+    if (direction.current === next) return;
+    stopRepeat();
+    direction.current = next;
+    if (next === null) return;
+    move(next);
+    if (next === "up" || next === "down") {
+      repeat.current = setInterval(() => move(next), 160);
+    }
+  };
+
+  return <div className="joystick-control">
+    <div className="joystick" role="group" aria-label="Navigation joystick" aria-describedby={helpId}
+      tabIndex={0} data-dragging={origin.current !== null}
+      onPointerDown={(event) => {
+        if (event.button !== 0 || origin.current) return;
+        event.preventDefault();
+        event.currentTarget.focus();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        origin.current = { x: event.clientX, y: event.clientY, pointer: event.pointerId };
+        setOffset({ x: 0, y: 0 });
+      }}
+      onPointerMove={(event) => {
+        if (!origin.current || origin.current.pointer !== event.pointerId) return;
+        const dx = event.clientX - origin.current.x;
+        const dy = event.clientY - origin.current.y;
+        setOffset({ x: Math.max(-18, Math.min(18, dx)), y: Math.max(-14, Math.min(14, dy)) });
+        const next = Math.max(Math.abs(dx), Math.abs(dy)) < 12 ? null
+          : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
+        engage(next);
+      }}
+      onPointerUp={(event) => {
+        if (origin.current?.pointer !== event.pointerId) return;
+        center();
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+      onPointerCancel={center} onLostPointerCapture={center}
+      onKeyDown={(event) => {
+        const keys: Record<string, Direction> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
+        const next = keys[event.key];
+        if (!next) return;
+        event.preventDefault();
+        setOffset({ x: next === "left" ? -18 : next === "right" ? 18 : 0,
+          y: next === "up" ? -14 : next === "down" ? 14 : 0 });
+        engage(next);
+      }} onKeyUp={center} onBlur={center}>
+      <span className="joystick-base" aria-hidden="true" />
+      <span className="joystick-stick" aria-hidden="true"
+        style={{ transform: `translate(${offset.x}px, ${offset.y}px) rotate(${offset.x * 0.6}deg)` }}><i /></span>
+      <span className="joystick-arrow joystick-up" aria-hidden="true">↑</span>
+      <span className="joystick-arrow joystick-down" aria-hidden="true">↓</span>
+      <span className="joystick-arrow joystick-left" aria-hidden="true" data-enabled={!!onBack}>←</span>
+      <span className="joystick-arrow joystick-right" aria-hidden="true" data-enabled={!!onNext}>→</span>
     </div>
-  );
+    <span className="deck-action-label">Navigate</span>
+    <span id={helpId} className="deck-action-help">Drag the joystick or use arrow keys. Up and down scroll. Left goes back. Right continues when the step is complete.</span>
+  </div>;
 }

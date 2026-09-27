@@ -64,18 +64,18 @@ describe.each(lessons.map((lesson) => [lesson.id, lesson] as const))(
       }
     });
 
-    test("every bet derives a valid, unique option from the played records", () => {
+    test("every prediction derives a valid, unique option from the played records", () => {
       for (const beat of playBeats) {
-        const ids = beat.bet.options.map((o) => o.id);
+        const ids = beat.prediction.options.map((o) => o.id);
         expect(new Set(ids).size).toBe(ids.length);
-        const derived = beat.bet.deriveCorrectOption(recordsOf(beat));
+        const derived = beat.prediction.deriveCorrectOption(recordsOf(beat));
         expect(ids).toContain(derived);
       }
     });
 
-    test("the bets do not all share one derived answer", () => {
+    test("the predictions do not all share one derived answer", () => {
       const derived = playBeats.map((beat) =>
-        beat.bet.deriveCorrectOption(recordsOf(beat)),
+        beat.prediction.deriveCorrectOption(recordsOf(beat)),
       );
       expect(new Set(derived).size).toBeGreaterThan(1);
     });
@@ -97,8 +97,8 @@ describe.each(lessons.map((lesson) => [lesson.id, lesson] as const))(
           copy.push(
             beat.goal,
             beat.requires.description,
-            beat.bet.question,
-            ...beat.bet.options.map((o) => o.label),
+            beat.prediction.question,
+            ...beat.prediction.options.map((o) => o.label),
           );
         } else {
           copy.push(beat.intro);
@@ -113,8 +113,8 @@ describe.each(lessons.map((lesson) => [lesson.id, lesson] as const))(
       expect(produce).toBeDefined();
       expect(kill).toBeDefined();
       if (produce === undefined || kill === undefined) return;
-      expect(produce.bet.deriveCorrectOption(recordsOf(produce))).toBe("differ");
-      expect(kill.bet.deriveCorrectOption(recordsOf(kill))).toBe("identical");
+      expect(produce.prediction.deriveCorrectOption(recordsOf(produce))).toBe("differ");
+      expect(kill.prediction.deriveCorrectOption(recordsOf(kill))).toBe("identical");
     });
   },
 );

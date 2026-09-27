@@ -1,0 +1,16 @@
+[
+  {
+    "id": "feedback-and-limits",
+    "url": "https://www.anthropic.com/engineering/building-effective-agents",
+    "accessed": "2026-09-27",
+    "claim": "An agent receives feedback from its environment and can stop at a maximum iteration count.",
+    "review": "The Agents section supports feedback and stopping conditions. This lesson's one-retry policy is an explicit exercise design choice."
+  },
+  {
+    "id": "tool-errors",
+    "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+    "accessed": "2026-09-27",
+    "claim": "The application returns the outcome of a client tool call to the model.",
+    "review": "The client-tool workflow supports returning tool results. The simplified error protocol is implemented and tested in the local exercise engine."
+  }
+]

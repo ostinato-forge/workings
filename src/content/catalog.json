@@ -1,0 +1,12 @@
+[
+  {
+    "id": "tool-using-agent",
+    "title": "Build an agent that can use a tool",
+    "description": "Connect a tool, return its results, and stop an agent when its task is done."
+  },
+  {
+    "id": "retry-tools",
+    "title": "Give your agent a retry limit",
+    "description": "Recover from a failed lookup and stop safely when the tool remains unavailable."
+  }
+]

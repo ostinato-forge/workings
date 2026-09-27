@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "engine": "agent-loop/1",
+  "topic": "retries",
+  "id": "retry-tools",
+  "title": "Give your agent a retry limit",
+  "description": "Recover from a failed lookup and stop safely when the tool remains unavailable.",
+  "objective": "Recover from a temporary tool failure, then stop without an invented answer when the retry budget is exhausted.",
+  "sources": [
+    {
+      "url": "https://www.anthropic.com/engineering/building-effective-agents",
+      "claim": "An agent receives environmental feedback and can stop at a maximum iteration count."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+      "claim": "The application returns the outcome of a client tool call to the model."
+    }
+  ],
+  "beats": [
+    {
+      "kind": "teach",
+      "id": "meet-the-failure",
+      "title": "A connected tool can still fail",
+      "body": "Your loop already executes lookups, returns their results, and stops on an answer. Now the inventory sometimes returns an error instead of a count. The program must choose whether to retry or stop. This lesson uses a read-only lookup, so retrying does not place another order or change inventory. That is not true for every tool. The practice model is simulated, and the tool's failures are declared in each case."
+    },
+    {
+      "kind": "play",
+      "id": "observe-the-error",
+      "title": "Inspect an unfinished task",
+      "goal": "This case fails its first lookup. Run the supplied program and inspect the error. Stopping without invented data is valid error handling, but it does not complete this inventory task.",
+      "mode": "observe",
+      "program": {
+        "dispatch": "execute",
+        "observation": "append",
+        "finish": "return",
+        "maxTurns": 8,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [],
+      "pass": "tool-error",
+      "cases": [
+        {
+          "id": "temporary-outage",
+          "title": "One failed lookup",
+          "items": [
+            "cable",
+            "dock"
+          ],
+          "inventory": {
+            "cable": 0,
+            "dock": 5
+          },
+          "failures": {
+            "cable": 1
+          },
+          "expected": "complete"
+        }
+      ],
+      "prediction": {
+        "question": "How will your current program handle this inventory?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return stock counts after the lookup succeeds"
+          },
+          {
+            "id": "tool-error",
+            "label": "Stop and report a tool error"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Use up the model-call limit"
+          }
+        ]
+      },
+      "hints": [
+        "Find the tool event, then the stop event.",
+        "The lookup returned an error rather than a stock count.",
+        "The current program stops on the first error and does not invent an answer."
+      ],
+      "navigationHint": "Predict the response to an error, then inspect the trace."
+    },
+    {
+      "kind": "play",
+      "id": "allow-one-retry",
+      "title": "Allow a bounded retry",
+      "goal": "The first lookup fails, but another attempt can succeed. Change the error handling and retry allowance. Return the error to the conversation and allow one retry, then inspect how the next lookup finishes the task.",
+      "mode": "build",
+      "program": {
+        "dispatch": "execute",
+        "observation": "append",
+        "finish": "return",
+        "maxTurns": 8,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [
+        "onError",
+        "retries"
+      ],
+      "pass": "success",
+      "cases": [
+        {
+          "id": "temporary-outage",
+          "title": "One failed lookup",
+          "items": [
+            "cable",
+            "dock"
+          ],
+          "inventory": {
+            "cable": 0,
+            "dock": 5
+          },
+          "failures": {
+            "cable": 1
+          },
+          "expected": "complete"
+        }
+      ],
+      "prediction": {
+        "question": "How will your current program handle this inventory?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return stock counts after the lookup succeeds"
+          },
+          {
+            "id": "tool-error",
+            "label": "Stop and report a tool error"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Use up the model-call limit"
+          }
+        ]
+      },
+      "hints": [
+        "The stop event explains why the loop did not try again.",
+        "Returning an error lets the model request the missing information again. A retry allowance decides whether that request is permitted.",
+        "Choose the error branch that returns the error and retries. Set the retry allowance to one."
+      ],
+      "navigationHint": "Configure one retry and run the recovery case."
+    },
+    {
+      "kind": "play",
+      "id": "bounded-recovery",
+      "title": "Recover or report the failure",
+      "goal": "Build one program that handles all three cases. It must finish when inventory becomes available, and report a tool error when retries cannot recover the lookup. It must not invent stock counts or use the model-call limit as its normal error exit. Run tests your unchanged program against every case.",
+      "mode": "challenge",
+      "program": {
+        "dispatch": "execute",
+        "observation": "append",
+        "finish": "return",
+        "maxTurns": 8,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [
+        "onError",
+        "retries",
+        "maxTurns"
+      ],
+      "pass": "success",
+      "cases": [
+        {
+          "id": "recover-field",
+          "title": "Temporary failure",
+          "items": [
+            "adapter",
+            "screen"
+          ],
+          "inventory": {
+            "adapter": 2,
+            "screen": 0
+          },
+          "failures": {
+            "adapter": 1
+          },
+          "expected": "complete"
+        },
+        {
+          "id": "healthy-field",
+          "title": "Available inventory",
+          "items": [
+            "stand",
+            "cable"
+          ],
+          "inventory": {
+            "stand": 0,
+            "cable": 18
+          },
+          "expected": "complete"
+        },
+        {
+          "id": "persistent-outage",
+          "title": "Inventory unavailable",
+          "items": [
+            "battery",
+            "charger"
+          ],
+          "inventory": {
+            "battery": 6,
+            "charger": 0
+          },
+          "failures": {
+            "battery": 9
+          },
+          "expected": "tool-error"
+        }
+      ],
+      "prediction": {
+        "question": "How will your current program handle this inventory?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return stock counts after the lookup succeeds"
+          },
+          {
+            "id": "tool-error",
+            "label": "Stop and report a tool error"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Use up the model-call limit"
+          }
+        ]
+      },
+      "hints": [
+        "Compare the last event in each case. A useful error exit differs from reaching the model-call limit.",
+        "A finite retry allowance permits recovery and still leaves a way to stop when failures continue. It is shared across this run.",
+        "Return errors and allow one retry. Keep enough model calls for the retried lookup, the other lookup, and the final answer."
+      ],
+      "navigationHint": "Test recovery and persistent failure with the same program."
+    },
+    {
+      "kind": "recap",
+      "id": "what-retries-prove",
+      "title": "A retry is another attempt, not a guarantee",
+      "body": "Your loop can recover from one failed read and stop when further attempts exceed its allowance. Recovery produces an answer supported by tool results. A persistent failure produces an error and no answer. Those are different outcomes. The retry allowance limits error recovery, while the model-call limit bounds the whole loop. This lesson's one-retry policy is a practice choice. Real tools need policies that account for their failure modes and whether repeating an action changes external state."
+    },
+    {
+      "kind": "free-play",
+      "id": "free-play",
+      "intro": "Switch between a temporary failure and an ongoing outage. Compare zero, one, and two retries. Then lower the model-call limit and inspect which limit stops the loop. Free play does not change your challenge result.",
+      "program": {
+        "dispatch": "execute",
+        "observation": "append",
+        "finish": "return",
+        "maxTurns": 8,
+        "onError": "retry",
+        "retries": 1
+      },
+      "cases": [
+        {
+          "id": "temporary-outage",
+          "title": "One failed lookup",
+          "items": [
+            "cable",
+            "dock"
+          ],
+          "inventory": {
+            "cable": 0,
+            "dock": 5
+          },
+          "failures": {
+            "cable": 1
+          },
+          "expected": "complete"
+        },
+        {
+          "id": "persistent-outage",
+          "title": "Inventory unavailable",
+          "items": [
+            "battery",
+            "charger"
+          ],
+          "inventory": {
+            "battery": 6,
+            "charger": 0
+          },
+          "failures": {
+            "battery": 9
+          },
+          "expected": "tool-error"
+        }
+      ]
+    }
+  ]
+}

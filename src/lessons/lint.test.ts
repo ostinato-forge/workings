@@ -2,6 +2,10 @@ import { describe, expect, test } from "vitest";
 import { lintCopy } from "./lint";
 
 describe("lintCopy", () => {
+  test("allows ordinary words containing bet while rejecting wagering language", () => {
+    expect(lintCopy(["Choose between two cases. Read the alphabet."])).toEqual([]);
+    expect(lintCopy(["Place your bet."])).toHaveLength(1);
+  });
   test("passes plain mechanism copy", () => {
     expect(
       lintCopy([

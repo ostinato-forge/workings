@@ -10,7 +10,7 @@ export function RunRail({
   onSelect: (index: number) => void;
 }) {
   if (records.length === 0) {
-    return <p className="evidence-meta">No runs yet. Press START.</p>;
+    return <p className="evidence-meta">No runs yet. Press Run.</p>;
   }
   return (
     <ol className="run-rail" aria-label="your runs so far">

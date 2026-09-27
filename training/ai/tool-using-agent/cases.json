@@ -1,0 +1,129 @@
+{
+  "a-request-is-not-an-action": [
+    {
+      "id": "desk-kit",
+      "title": "Desk kit",
+      "items": [
+        "cable",
+        "dock"
+      ],
+      "inventory": {
+        "cable": 0,
+        "dock": 12
+      },
+      "expected": "complete"
+    }
+  ],
+  "execute-the-tool": [
+    {
+      "id": "desk-kit",
+      "title": "Desk kit",
+      "items": [
+        "cable",
+        "dock"
+      ],
+      "inventory": {
+        "cable": 0,
+        "dock": 12
+      },
+      "expected": "complete"
+    }
+  ],
+  "return-the-result": [
+    {
+      "id": "desk-kit",
+      "title": "Desk kit",
+      "items": [
+        "cable",
+        "dock"
+      ],
+      "inventory": {
+        "cable": 0,
+        "dock": 12
+      },
+      "expected": "complete"
+    }
+  ],
+  "build-your-agent": [
+    {
+      "id": "repair-office",
+      "title": "Office inventory",
+      "items": [
+        "mouse",
+        "keyboard"
+      ],
+      "inventory": {
+        "mouse": 0,
+        "keyboard": 9
+      },
+      "expected": "complete"
+    },
+    {
+      "id": "repair-field",
+      "title": "Field inventory",
+      "items": [
+        "battery",
+        "cable"
+      ],
+      "inventory": {
+        "battery": 6,
+        "cable": 0
+      },
+      "expected": "complete"
+    },
+    {
+      "id": "repair-audio",
+      "title": "Audio inventory",
+      "items": [
+        "stand",
+        "microphone"
+      ],
+      "inventory": {
+        "stand": 0,
+        "microphone": 3
+      },
+      "expected": "complete"
+    }
+  ],
+  "free-play": [
+    {
+      "id": "desk-kit",
+      "title": "Desk kit",
+      "items": [
+        "cable",
+        "dock"
+      ],
+      "inventory": {
+        "cable": 0,
+        "dock": 12
+      },
+      "expected": "complete"
+    },
+    {
+      "id": "travel-kit",
+      "title": "Travel kit",
+      "items": [
+        "adapter",
+        "charger"
+      ],
+      "inventory": {
+        "adapter": 7,
+        "charger": 0
+      },
+      "expected": "complete"
+    },
+    {
+      "id": "studio-kit",
+      "title": "Studio kit",
+      "items": [
+        "screen",
+        "stand"
+      ],
+      "inventory": {
+        "screen": 0,
+        "stand": 4
+      },
+      "expected": "complete"
+    }
+  ]
+}

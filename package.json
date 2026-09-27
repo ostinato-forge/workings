@@ -4,13 +4,15 @@
   "version": "0.0.1",
   "type": "module",
   "engines": {
-    "node": "^22"
+    "node": "^22.13.0"
   },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "sweep": "npm run build && tsx scripts/sweep.ts",
+    "sweep:agents": "npm run build && tsx scripts/agent-sweep.ts",
+    "training": "tsx scripts/training.ts",
     "pretest": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,7 +23,8 @@
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/press-start-2p": "^5.3.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "yaml": "2.9.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

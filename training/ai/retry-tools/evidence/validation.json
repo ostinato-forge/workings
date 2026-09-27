@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "findings": [],
+  "cases": 11,
+  "contentHash": "4dcfafa4de525d9490caa911d97c6bc7f6d92d4cef0d9c04e4abbf80880d3637",
+  "engineSourceHash": "70c9f0487b6de91747683f657757cb0d910a1c73a04f4ddbe8719dd99d89f4f7",
+  "validatorSourceHash": "2009d6d2ccb64be7354931a76bf60e50974657a8136770a039854976f4bbf93b",
+  "engine": "agent-loop/1",
+  "revision": 1,
+  "objective": {
+    "id": "retry-tools",
+    "description": "Recover from a temporary tool failure, then stop without an invented answer when the retry budget is exhausted.",
+    "checks": [
+      "tool",
+      "observation",
+      "answer",
+      "bounded"
+    ],
+    "practice": [
+      "observe-the-error",
+      "allow-one-retry"
+    ],
+    "challenge": "bounded-recovery"
+  }
+}

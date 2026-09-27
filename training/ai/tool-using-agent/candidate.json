@@ -1,0 +1,349 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "engine": "agent-loop/1",
+  "topic": "tools",
+  "id": "tool-using-agent",
+  "title": "Build an agent that can use a tool",
+  "description": "Connect a tool, return its results, and stop an agent when its task is done.",
+  "objective": "Build a bounded loop that executes tool requests, returns matching results, and finishes with an answer supported by those results.",
+  "sources": [
+    {
+      "url": "https://www.anthropic.com/engineering/building-effective-agents",
+      "claim": "An agent can use tool feedback in a loop, with stopping conditions such as an iteration limit."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+      "claim": "For client tools, the application executes a requested tool and returns a result associated with that request."
+    }
+  ],
+  "beats": [
+    {
+      "kind": "teach",
+      "id": "meet-the-task",
+      "title": "Give the agent a way to check",
+      "body": "A user asks whether two items are in stock. The answer lives in an inventory, outside the model. You will build the loop around the model so it can request a lookup, receive the result, and answer. A tool call is a structured request to run a function. Our lookup_stock tool reads a local practice inventory. Model responses are simulated; the tool and the program you build execute in your browser. Use Step to follow one operation at a time, or Run to follow the whole loop."
+    },
+    {
+      "kind": "play",
+      "id": "a-request-is-not-an-action",
+      "title": "A request needs an executor",
+      "goal": "The model can request lookup_stock, but this program stops before executing the request. Predict its outcome, then run it. Inspect the request and the conversation.",
+      "mode": "observe",
+      "program": {
+        "dispatch": "stop",
+        "observation": "discard",
+        "finish": "return",
+        "maxTurns": 5,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [],
+      "cases": [
+        {
+          "id": "desk-kit",
+          "title": "Desk kit",
+          "items": [
+            "cable",
+            "dock"
+          ],
+          "inventory": {
+            "cable": 0,
+            "dock": 12
+          },
+          "expected": "complete"
+        }
+      ],
+      "pass": "unhandled-tool",
+      "prediction": {
+        "question": "What will your current program do?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return the stock counts and stop"
+          },
+          {
+            "id": "unhandled-tool",
+            "label": "Stop with a tool request waiting"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Use up the model-call limit"
+          }
+        ]
+      },
+      "hints": [
+        "Find the last event in the trace.",
+        "A tool request names an operation; it does not execute itself.",
+        "The application needs to run the requested tool."
+      ],
+      "navigationHint": "Predict the outcome, then press Run or Step."
+    },
+    {
+      "kind": "play",
+      "id": "execute-the-tool",
+      "title": "Connect the tool",
+      "goal": "Change the block that handles a tool request so it executes the lookup. Keep the other blocks fixed for this experiment. Predict what happens when the program runs the tool but discards its result.",
+      "mode": "build",
+      "program": {
+        "dispatch": "stop",
+        "observation": "discard",
+        "finish": "return",
+        "maxTurns": 5,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [
+        "dispatch"
+      ],
+      "cases": [
+        {
+          "id": "desk-kit",
+          "title": "Desk kit",
+          "items": [
+            "cable",
+            "dock"
+          ],
+          "inventory": {
+            "cable": 0,
+            "dock": 12
+          },
+          "expected": "complete"
+        }
+      ],
+      "pass": "turn-limit",
+      "prediction": {
+        "question": "What will your current program do?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return the stock counts and stop"
+          },
+          {
+            "id": "unhandled-tool",
+            "label": "Stop with a tool request waiting"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Use up the model-call limit"
+          }
+        ]
+      },
+      "hints": [
+        "Look for a tool result in the trace.",
+        "The executor must turn the model's request into a function call.",
+        "Set the tool-request block to execute the requested tool. Then inspect what happens to its result."
+      ],
+      "navigationHint": "Execute the tool, then inspect why the request repeats."
+    },
+    {
+      "kind": "play",
+      "id": "return-the-result",
+      "title": "Make the result available",
+      "goal": "The tool ran, but the conversation did not receive its result. The conversation is the message history sent on the next model call. Change how the program handles the result. A call ID links each result to the request it answers. Run your repair and inspect both lookups.",
+      "mode": "build",
+      "program": {
+        "dispatch": "execute",
+        "observation": "discard",
+        "finish": "return",
+        "maxTurns": 5,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [
+        "observation"
+      ],
+      "cases": [
+        {
+          "id": "desk-kit",
+          "title": "Desk kit",
+          "items": [
+            "cable",
+            "dock"
+          ],
+          "inventory": {
+            "cable": 0,
+            "dock": 12
+          },
+          "expected": "complete"
+        }
+      ],
+      "pass": "success",
+      "prediction": {
+        "question": "What will your current program do?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return the stock counts and stop"
+          },
+          {
+            "id": "unhandled-tool",
+            "label": "Stop with a tool request waiting"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Use up the model-call limit"
+          }
+        ]
+      },
+      "hints": [
+        "Compare the tool result with the messages the model can see.",
+        "A result stored outside the conversation is missing from the next model call. An unrelated call ID also leaves the request unanswered.",
+        "Append the result to the conversation with its matching call ID."
+      ],
+      "navigationHint": "Return matching tool results, then run the loop."
+    },
+    {
+      "kind": "teach",
+      "id": "finish-the-loop",
+      "title": "An answer and a limit are different exits",
+      "body": "Your program now runs both lookups and sends their results back. The next model response can contain a final answer. Return that answer and stop. Calling the model again after an answer wastes calls. Keep a maximum call count as a separate limit for unfinished work. Reaching that limit means the loop stopped; it does not mean the task succeeded. Next, repair both the result handling and the final-answer branch in a new program."
+    },
+    {
+      "kind": "play",
+      "id": "build-your-agent",
+      "title": "Build a loop that works on fresh cases",
+      "goal": "Repair this program so it checks every requested item, returns the stock counts from the tool results, and stops before its call limit. Run tests the same program on three inventories. Inspect each case. The goal is a reusable loop, so changing an answer for one inventory cannot solve the task.",
+      "mode": "challenge",
+      "program": {
+        "dispatch": "execute",
+        "observation": "discard",
+        "finish": "repeat",
+        "maxTurns": 5,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [
+        "dispatch",
+        "observation",
+        "finish",
+        "maxTurns"
+      ],
+      "cases": [
+        {
+          "id": "repair-office",
+          "title": "Office inventory",
+          "items": [
+            "mouse",
+            "keyboard"
+          ],
+          "inventory": {
+            "mouse": 0,
+            "keyboard": 9
+          },
+          "expected": "complete"
+        },
+        {
+          "id": "repair-field",
+          "title": "Field inventory",
+          "items": [
+            "battery",
+            "cable"
+          ],
+          "inventory": {
+            "battery": 6,
+            "cable": 0
+          },
+          "expected": "complete"
+        },
+        {
+          "id": "repair-audio",
+          "title": "Audio inventory",
+          "items": [
+            "stand",
+            "microphone"
+          ],
+          "inventory": {
+            "stand": 0,
+            "microphone": 3
+          },
+          "expected": "complete"
+        }
+      ],
+      "pass": "success",
+      "prediction": {
+        "question": "What will your current program do?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return the stock counts and stop"
+          },
+          {
+            "id": "unhandled-tool",
+            "label": "Stop with a tool request waiting"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Use up the model-call limit"
+          }
+        ]
+      },
+      "hints": [
+        "Read the repeated events. Does the conversation gain a matching tool result, and what happens after an answer?",
+        "The loop needs one path for a tool request and a different path for a final answer. A call limit is only a fallback.",
+        "Execute the tool, append its result with its call ID, and return final answers. Allow enough calls for two lookups and an answer."
+      ],
+      "navigationHint": "Repair the loop, predict its outcome, and test every case."
+    },
+    {
+      "kind": "recap",
+      "id": "what-you-built",
+      "title": "You built the control loop",
+      "body": "Your program connected a model response to a tool, returned the observation with its call ID, and stopped when an answer arrived. The execution trace shows what happened at each step. Fresh inventories checked whether the same program could use different observations. This exercise uses a declared model simulation. A real model may choose different tools or produce invalid requests, so its behavior needs separate testing. Completing this practice is evidence about these loop mechanics, not a claim of general agent reliability."
+    },
+    {
+      "kind": "free-play",
+      "id": "free-play",
+      "intro": "Choose another inventory and change the loop. Try discarding a result, using an unrelated call ID, or continuing after an answer. Compare the trace and conversation. Free play does not change your challenge result.",
+      "program": {
+        "dispatch": "execute",
+        "observation": "append",
+        "finish": "return",
+        "maxTurns": 5,
+        "onError": "stop",
+        "retries": 0
+      },
+      "cases": [
+        {
+          "id": "desk-kit",
+          "title": "Desk kit",
+          "items": [
+            "cable",
+            "dock"
+          ],
+          "inventory": {
+            "cable": 0,
+            "dock": 12
+          },
+          "expected": "complete"
+        },
+        {
+          "id": "travel-kit",
+          "title": "Travel kit",
+          "items": [
+            "adapter",
+            "charger"
+          ],
+          "inventory": {
+            "adapter": 7,
+            "charger": 0
+          },
+          "expected": "complete"
+        },
+        {
+          "id": "studio-kit",
+          "title": "Studio kit",
+          "items": [
+            "screen",
+            "stand"
+          ],
+          "inventory": {
+            "screen": 0,
+            "stand": 4
+          },
+          "expected": "complete"
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 /*
  * The neutrality lint from the spec's copy rules: hype and deflation
  * registers both fail, em dashes are banned, cutesy diminutives are
- * banned. Checks are case-insensitive substring matches; each violation
+ * banned. Checks ignore case and match the short word bet at word boundaries; each violation
  * names the banned phrase and quotes the offending string.
  */
 
@@ -39,7 +39,8 @@ export function lintCopy(strings: readonly string[]): string[] {
   for (const text of strings) {
     const lower = text.toLowerCase();
     for (const banned of BANNED) {
-      if (lower.includes(banned.toLowerCase())) {
+      const matches = banned === "bet" ? /\bbet(?:s|ting)?\b/.test(lower) : lower.includes(banned.toLowerCase());
+      if (matches) {
         violations.push(`banned phrase "${banned}" in: ${text}`);
       }
     }

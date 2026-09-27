@@ -75,7 +75,8 @@ export function Knob({
         }}
         onPointerDown={(e) => {
           if (disabled) return;
-          (e.target as HTMLElement).setPointerCapture(e.pointerId);
+          e.currentTarget.focus();
+          e.currentTarget.setPointerCapture(e.pointerId);
           dragOrigin.current = { y: e.clientY, value: effective };
         }}
         onPointerMove={(e) => {
@@ -86,6 +87,7 @@ export function Knob({
         onPointerUp={() => {
           dragOrigin.current = null;
         }}
+        onPointerCancel={() => { dragOrigin.current = null; }}
       >
         <span
           className="knob-indicator"

@@ -2,7 +2,7 @@
   --crt-black: #030308;
   --panel: rgba(126, 226, 168, 0.07);
   --ink: #d9efe2;
-  --ink-dim: #6f8a7c;
+  --ink-dim: #a7b7b8;
   --phosphor: #7ee2a8;
   --phosphor-hot: #a3f0c1;
   --cut: rgba(111, 138, 124, 0.58);
@@ -22,12 +22,13 @@ html {
 body {
   margin: 0;
   font-family: var(--body);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   color: var(--ink);
 }
 
 .wish-screen-content > main {
+  font-family: var(--body);
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -37,17 +38,145 @@ body {
 }
 
 .screen-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
   flex: 0 0 auto;
-  border-bottom: 1px solid rgba(126, 226, 168, 0.18);
-  padding: 8px 18px;
-  font-family: var(--display);
-  font-size: 7px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  border-bottom: 1px solid var(--line);
+  padding: 0 18px;
+  font-family: var(--body);
+  font-size: 14px;
 }
 
 .screen-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   text-decoration: none;
+}
+
+.course-list {
+  margin: 1.25rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.course-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.course-list a {
+  display: block;
+  padding: 1rem 0.5rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.course-list a:hover {
+  background: var(--panel);
+}
+
+.course-list h2 {
+  color: var(--phosphor);
+  margin: 0 0 0.5rem;
+}
+
+.course-list p {
+  max-width: 65ch;
+  margin: 0 0 0.5rem;
+}
+
+.course-meta, .course-progress {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  color: var(--ink-dim);
+}
+
+.lesson-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lesson-summary > span {
+  color: var(--ink-dim);
+}
+
+.save-notice {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.simulation-note {
+  color: var(--ink-dim);
+  font-size: 0.875rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.host-table {
+  width: 100%;
+  max-width: 40rem;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.host-table caption {
+  text-align: left;
+  padding: 0.5rem 0;
+}
+
+.host-table th, .host-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.editor-label {
+  display: block;
+  margin: 1rem 0 0.5rem;
+}
+
+.playbook-editor {
+  display: block;
+  width: 100%;
+  min-height: 18rem;
+  resize: vertical;
+  padding: 0.75rem;
+  background: var(--crt-black);
+  color: var(--ink);
+  border: 1px solid rgba(126, 226, 168, 0.4);
+  border-radius: 0.4rem;
+  font-family: var(--mono);
+  font-size: 1rem;
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+.ansible-runs {
+  padding-left: 1.25rem;
+}
+
+.ansible-runs > li {
+  padding: 0.5rem 0;
+}
+
+.ansible-runs ul {
+  padding-left: 1rem;
+  font-size: 0.875rem;
+}
+
+.ansible-runs li {
+  overflow-wrap: anywhere;
+}
+
+.recovery-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 .screen-title {
@@ -64,7 +193,7 @@ body {
 
 .panel {
   background: var(--panel);
-  border: 1px solid rgba(126, 226, 168, 0.1);
+  border: 1px solid var(--line);
   border-radius: 0.4rem;
   padding: 0.8rem 1rem;
   margin-block: 0.65rem;
@@ -190,7 +319,7 @@ input[type="number"] {
 }
 
 fieldset {
-  border: 1px solid rgba(126, 226, 168, 0.2);
+  border: 1px solid var(--line);
   border-radius: 0.4rem;
   padding: 0.75rem 0.9rem;
 }
@@ -244,6 +373,11 @@ legend {
 
 .evidence-meta {
   color: var(--ink-dim);
+  overflow-wrap: anywhere;
+  max-width: 70ch;
+}
+
+.evidence-row .evidence-meta {
   white-space: nowrap;
 }
 
@@ -294,7 +428,7 @@ legend {
 .verdict {
   font-size: 1rem;
   padding: 0.75rem 0.9rem;
-  border-left: 4px solid var(--phosphor);
+  border: 1px solid var(--line);
   background: var(--panel);
   max-width: 72ch;
 }
@@ -429,18 +563,153 @@ legend {
 }
 
 .requirement {
-  border-left: 4px solid var(--phosphor);
+  border: 1px solid var(--line);
   padding: 0.5rem 0.8rem;
   background: var(--panel);
   max-width: 72ch;
 }
 
 .requirement.unmet {
-  border-left-color: var(--cut);
+  border-color: var(--line);
 }
 
 @media (max-width: 720px) {
   .playfield {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* The display changes theme. The cabinet keeps its own palette. */
+.wish-screen-content {
+  --crt-black: #0e171e;
+  --panel: #17242d;
+  --ink: #e6eef0;
+  --ink-dim: #acbdc6;
+  --phosphor: #91eac5;
+  --phosphor-hot: #b4f6d8;
+  --line: #344950;
+  --cut: #8597a0;
+  background: var(--crt-black);
+  color: var(--ink);
+  color-scheme: dark;
+  font-family: var(--body);
+}
+[data-display-theme="light"] .wish-screen-content {
+  --crt-black: #f7f9fa;
+  --panel: #edf2f3;
+  --ink: #182b35;
+  --ink-dim: #506571;
+  --phosphor: #136a53;
+  --phosphor-hot: #0e5b47;
+  --line: #bacace;
+  --cut: #70838e;
+  color-scheme: light;
+}
+.wish-screen-content > main {
+  padding: 28px 36px 36px;
+  scrollbar-color: var(--line) var(--crt-black);
+}
+.screen-nav { padding-inline: 36px; gap: 20px; font-size: 15px; }
+.screen-nav a + a { border-left: 1px solid var(--line); padding-left: 20px; }
+.screen-nav a:hover { text-decoration: underline; }
+.stage-name, .screen-title { font-size: 30px; letter-spacing: -0.02em; color: var(--ink); text-shadow: none; }
+.stage-title { font: 12px var(--mono); margin-bottom: 10px; letter-spacing: 0.06em; color: var(--ink-dim); }
+.stage-name { margin-bottom: 8px; }
+.lesson-heading { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; }
+.lesson-heading .stage-title { margin: 0; }
+.lesson-heading .stage-name { grid-column: 1 / -1; grid-row: 2; margin: 0; }
+.lesson-progress { grid-column: 2; grid-row: 1; margin: 0; font-size: 13px; }
+.workbench-goal { max-width: 75ch; margin: 18px 0 0; font-size: 17px; color: var(--ink-dim); }
+.screen-intro { font-size: 18px; }
+.panel { border-radius: 6px; padding: 18px 22px; margin-block: 18px; max-width: 75ch; }
+.panel h2 { margin: 0 0 12px; }
+.panel p { margin: 0; font-size: 18px; line-height: 1.6; max-width: 68ch; }
+.phase-enter > .panel { margin-top: 28px; }
+.evidence-meta { font-size: 15px; }
+.simulation-note { margin-top: 16px; }
+.ansible-workspace { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 24px; }
+.ansible-editor, .ansible-evidence { min-width: 0; }
+.editor-label { margin: 0 0 12px; font-size: 19px; font-weight: 700; color: var(--ink); }
+.playbook-editor {
+  min-height: 350px; padding: 20px; border-color: #42596a; border-radius: 6px;
+  background: #101d2a; color: #d5ebeb; font-size: 15px; line-height: 1.65; color-scheme: dark;
+}
+.playbook-editor:read-only { border-color: #546879; }
+.playbook-editor + p { font-size: 13px; margin-top: 10px; }
+.host-table { max-width: none; font-size: 15px; }
+.host-table caption { font-size: 19px; font-weight: 700; padding: 0 0 12px; color: var(--ink); }
+.host-table th, .host-table td { padding: 10px 12px; border-color: var(--line); }
+.host-table thead { background: var(--panel); }
+.ansible-evidence fieldset { margin-top: 24px; padding: 12px 16px; }
+.option-row { padding-block: 4px; align-items: baseline; min-height: 44px; }
+.option-row input { flex: 0 0 auto; align-self: center; }
+legend { font-weight: 700; }
+.run-empty { margin-top: 24px; padding: 18px 0; border-top: 1px solid var(--line); }
+.run-empty > span { color: var(--phosphor); font: 30px var(--mono); }
+.run-empty h2 { font-size: 18px; margin-block: 8px; }
+.run-empty p { color: var(--ink-dim); margin: 0; font-size: 15px; }
+.ansible-runs { padding-left: 24px; margin-top: 14px; }
+.ansible-runs > li { padding-block: 14px; border-top: 1px solid var(--line); }
+.ansible-runs h2 { font-size: 18px; margin: 0 0 10px; }
+.ansible-runs ul { font-size: 14px; line-height: 1.6; }
+.verdict { margin-top: 18px; border-radius: 4px; }
+.requirement { margin-block: 18px; border-radius: 4px; }
+.playfield { margin-top: 24px; gap: 24px; }
+.phase-enter > div > fieldset { max-width: 75ch; }
+.wish-screen-content button { border-color: var(--line); }
+.wish-screen-content button:hover:not(:disabled) { background: var(--panel); border-color: var(--phosphor); }
+.wish-screen-content h1, .wish-screen-content h2 { overflow-wrap: anywhere; }
+.course-list { max-width: 72rem; }
+.course-list a { padding: 24px 16px; }
+.course-list h2 { font-size: 25px; }
+.course-list p { font-size: 18px; }
+.stage-list { max-width: 72rem; margin-block: 24px; }
+.stage-list a { padding: 20px; gap: 24px; }
+.stage-list strong { font-size: 20px; }
+.attract-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 20px; }
+.attract-screen h1 { font-size: 40px; margin: 0; letter-spacing: -0.03em; }
+.attract-screen p { max-width: 50ch; margin: 0; font-size: 18px; }
+.attract-mark { font: 50px var(--display); color: var(--phosphor); transform: rotate(-8deg); margin-bottom: 14px; }
+button.insert-coin { display: flex; align-items: center; gap: 14px; font-weight: 700; font-size: 18px; padding: 8px 20px 8px 10px; margin-block: 6px; border-radius: 8px; background: var(--panel); }
+.coin-symbol { display: grid; place-items: center; width: 44px; height: 44px; background: #efce83; color: #3c2c15; border-radius: 14px; box-shadow: 0 3px #a37835; font-size: 25px; }
+.attract-screen .evidence-meta { font-size: 14px; }
+
+@media (min-width: 1600px) {
+  .wish-screen-content > main { padding: 32px 48px 40px; }
+  .screen-nav { padding-inline: 48px; }
+  .ansible-workspace { gap: 48px; }
+  .playbook-editor { min-height: 410px; font-size: 16px; }
+}
+@media (max-width: 1000px) {
+  .wish-screen-content > main { padding: 22px; }
+  .screen-nav { padding-inline: 22px; }
+  .ansible-workspace { gap: 20px; }
+  .playbook-editor { padding: 14px; font-size: 13px; }
+  .host-table { font-size: 14px; }
+  .host-table th, .host-table td { padding: 8px; }
+}
+@media (max-width: 700px) {
+  .ansible-workspace { grid-template-columns: 1fr; }
+  .ansible-editor { order: 2; }
+  .ansible-evidence { order: 1; }
+  .wish-screen-content > main { padding: 18px; }
+  .screen-nav { padding-inline: 18px; font-size: 13px; gap: 12px; }
+  .screen-nav a + a { padding-left: 12px; }
+  .stage-name, .screen-title { font-size: 24px; }
+  .stage-title { font-size: 10px; }
+  .panel { padding: 14px; }
+  .panel p { font-size: 16px; }
+  .attract-screen h1 { font-size: 30px; }
+  .attract-screen p { font-size: 16px; }
+  .attract-mark { font-size: 40px; }
+  .stage-list a { padding: 14px; gap: 14px; }
+  .stage-list strong { font-size: 18px; }
+  .course-list a { padding-inline: 4px; }
+}
+@media (max-height: 620px) {
+  .wish-screen-content > main { padding-top: 14px; }
+  .screen-nav a { min-height: 36px; }
+  .attract-screen { gap: 12px; justify-content: flex-start; }
+  .attract-mark { display: none; }
 }

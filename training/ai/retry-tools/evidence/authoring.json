@@ -1,0 +1,17 @@
+{
+  "fingerprint": "67f8a65b10489fc38c536919845ef6f4d11242c0a67c4a111cf6758eb7265dea",
+  "inputHashes": {
+    "brief": "a63e6a0c3ce9831fd2b65ae2cb0535ba9660fd4f045c0ab32162cc85f90c3ec4",
+    "sources": "962c136cb39aa22e8bbacb16282467d24f8e0337c53bfcf80af797a452c3f254"
+  },
+  "contentHash": "4dcfafa4de525d9490caa911d97c6bc7f6d92d4cef0d9c04e4abbf80880d3637",
+  "writer": "current assistant session",
+  "automatedProviderRun": false,
+  "usage": {
+    "calls": null,
+    "tokens": null,
+    "estimatedUsd": null
+  },
+  "note": "Generated from the brief in the current session and imported for local validation. Separate authoring usage was not metered. No additional provider call ran.",
+  "importedAt": "2026-09-27T20:50:23.112Z"
+}

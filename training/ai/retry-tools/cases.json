@@ -1,0 +1,119 @@
+{
+  "observe-the-error": [
+    {
+      "id": "temporary-outage",
+      "title": "One failed lookup",
+      "items": [
+        "cable",
+        "dock"
+      ],
+      "inventory": {
+        "cable": 0,
+        "dock": 5
+      },
+      "failures": {
+        "cable": 1
+      },
+      "expected": "complete"
+    }
+  ],
+  "allow-one-retry": [
+    {
+      "id": "temporary-outage",
+      "title": "One failed lookup",
+      "items": [
+        "cable",
+        "dock"
+      ],
+      "inventory": {
+        "cable": 0,
+        "dock": 5
+      },
+      "failures": {
+        "cable": 1
+      },
+      "expected": "complete"
+    }
+  ],
+  "bounded-recovery": [
+    {
+      "id": "recover-field",
+      "title": "Temporary failure",
+      "items": [
+        "adapter",
+        "screen"
+      ],
+      "inventory": {
+        "adapter": 2,
+        "screen": 0
+      },
+      "failures": {
+        "adapter": 1
+      },
+      "expected": "complete"
+    },
+    {
+      "id": "healthy-field",
+      "title": "Available inventory",
+      "items": [
+        "stand",
+        "cable"
+      ],
+      "inventory": {
+        "stand": 0,
+        "cable": 18
+      },
+      "expected": "complete"
+    },
+    {
+      "id": "persistent-outage",
+      "title": "Inventory unavailable",
+      "items": [
+        "battery",
+        "charger"
+      ],
+      "inventory": {
+        "battery": 6,
+        "charger": 0
+      },
+      "failures": {
+        "battery": 9
+      },
+      "expected": "tool-error"
+    }
+  ],
+  "free-play": [
+    {
+      "id": "temporary-outage",
+      "title": "One failed lookup",
+      "items": [
+        "cable",
+        "dock"
+      ],
+      "inventory": {
+        "cable": 0,
+        "dock": 5
+      },
+      "failures": {
+        "cable": 1
+      },
+      "expected": "complete"
+    },
+    {
+      "id": "persistent-outage",
+      "title": "Inventory unavailable",
+      "items": [
+        "battery",
+        "charger"
+      ],
+      "inventory": {
+        "battery": 6,
+        "charger": 0
+      },
+      "failures": {
+        "battery": 9
+      },
+      "expected": "tool-error"
+    }
+  ]
+}

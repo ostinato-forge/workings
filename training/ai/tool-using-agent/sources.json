@@ -1,0 +1,16 @@
+[
+  {
+    "id": "agent-loop",
+    "url": "https://www.anthropic.com/engineering/building-effective-agents",
+    "accessed": "2026-09-27",
+    "claim": "An agent can use tool feedback in a loop. A maximum iteration count is a stopping condition.",
+    "review": "The Agents section describes environmental feedback, task completion, and iteration limits. This supports the loop mechanics, not a claim of learning effectiveness."
+  },
+  {
+    "id": "tool-results",
+    "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview",
+    "accessed": "2026-09-27",
+    "claim": "For client tools, the application executes a requested tool and returns a result associated with that request.",
+    "review": "The client-tool workflow distinguishes a model request from application execution and returning the result. The lesson uses a simplified provider-independent protocol."
+  }
+]
