@@ -29,7 +29,7 @@ npm run build   # production build in dist/
 | `src/engine` | The model engine and its tests |
 | `src/lessons` | Lesson definitions, their contract, and the lint that checks them |
 | `src/shell` | The arcade shell |
-| `src/workbench` | The workbench for building and checking lessons |
+| `src/workbench` | The lesson player and its on-screen controls |
 | `models` | Training scripts for the bundled curves |
 | `docs/design/mockups` | The HTML mockups the lessons were designed from |
 
