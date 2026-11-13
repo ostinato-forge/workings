@@ -150,7 +150,13 @@ async function keyboardPlay(page: Page): Promise<void> {
         if (await continueButton.isEnabled().catch(() => false)) break;
         await pressUntilFocused(page, "button", /^Run$/, 25);
         await page.keyboard.press("Enter");
-        await page.waitForTimeout(200);
+        // A run replays one step at a time. Wait for it to end instead of
+        // guessing a delay, so the journey does not depend on machine speed.
+        await page.waitForFunction(() => {
+          const named = (name: string) => [...document.querySelectorAll("button")]
+            .find((button) => button.getAttribute("aria-label") === name);
+          return named("Continue")?.disabled === false || named("Run")?.disabled === false;
+        }, undefined, { timeout: 20_000 });
       }
       await page
         .getByRole("list", { name: "your runs so far" })
@@ -502,6 +508,16 @@ async function sweep(): Promise<void> {
     await storageChecks(browser);
   } catch (error) {
     await capture(page, "failure");
+    // Say where the journey stopped: the visible screen text and the focused control.
+    const screen = await page.locator("body").innerText().catch(() => "(page text unavailable)");
+    const focused = await page.evaluate(() => {
+      const element = document.activeElement;
+      if (element === null) return "nothing";
+      const label = element.getAttribute("aria-label") ?? element.textContent ?? "";
+      return `${element.tagName.toLowerCase()} "${label.trim().slice(0, 60)}"${(element as HTMLButtonElement).disabled ? " (disabled)" : ""}`;
+    }).catch(() => "(focus unavailable)");
+    console.error(`Sweep stopped at ${page.url()}\nFocused: ${focused}\nScreen text:\n${screen.slice(0, 2500)}`);
+    if (consoleErrors.length > 0) console.error(`Console errors:\n${consoleErrors.join("\n")}`);
     throw error;
   } finally {
     await browser.close();

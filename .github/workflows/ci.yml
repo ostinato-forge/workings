@@ -30,3 +30,12 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Type check, unit tests, both browser sweeps, then the production build check.
       - run: npm run gate
+        env:
+          WORKINGS_SCREENSHOT_DIR: sweep-screenshots
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sweep-screenshots
+          path: sweep-screenshots
+          if-no-files-found: ignore
+          retention-days: 7
