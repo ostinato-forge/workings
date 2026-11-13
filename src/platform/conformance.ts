@@ -10,7 +10,7 @@ import { describe, expect, test } from "vitest";
 import { PLATFORM_MEASURES } from "./measures";
 import type { StageRunRecord } from "./run-record";
 import { runSubjectWithReport, type RunReport } from "./run-subject";
-import { stageEventProblems, type StageEvent } from "./stage-event";
+import type { StageEvent } from "./stage-event";
 import { checkArgs, isMeasureValue, type ArgContext, type ArgSpec, type MeasureArgs, type Subject, type WorldView } from "./subject";
 import { splitLines, thrownMessage } from "./text";
 
@@ -130,9 +130,9 @@ class Checker<World> {
     return this.runs;
   }
 
-  // Runs that produced a record, with each step's event if its shape is
-  // valid. Rules after event-shape skip malformed events, so a malformed
-  // event is reported once, under event-shape.
+  // Runs that produced a record. The run path turns a record with a
+  // malformed event into an internal fault, so a malformed event is
+  // reported once, under event-shape, and later rules never see it.
   private records(): { item: ConformanceCase<World>; record: StageRunRecord<World> }[] {
     return this.caseRuns().flatMap(({ item, first }) => (first.result.ok ? [{ item, record: first.result.record }] : []));
   }
@@ -177,6 +177,7 @@ class Checker<World> {
 
   private recordInvariants(): ConformanceProblem[] {
     return this.caseRuns().flatMap(({ item, first }): ConformanceProblem[] => {
+      if (first.eventProblems !== undefined) return [];
       if (first.internal !== undefined) return [{ rule: "record-invariants", caseName: item.name, message: first.internal }];
       if (!first.result.ok) {
         return [{ rule: "record-invariants", caseName: item.name, message: `The case gave a problem instead of a run: ${first.result.problem.what}` }];
@@ -186,18 +187,16 @@ class Checker<World> {
   }
 
   private eventShape(): ConformanceProblem[] {
-    return this.records().flatMap(({ item, record }) => record.steps.flatMap((step) =>
-      stageEventProblems(step.event).map((message) => ({ rule: "event-shape" as const, caseName: item.name, step: step.index, message }))));
+    return this.caseRuns().flatMap(({ item, first }) => (first.eventProblems ?? [])
+      .map(({ step, message }) => ({ rule: "event-shape" as const, caseName: item.name, step, message })));
   }
 
   private perEvent(
     rule: ConformanceRule,
     check: (event: StageEvent, step: StageRunRecord<World>["steps"][number], record: StageRunRecord<World>, item: ConformanceCase<World>) => string[],
   ): ConformanceProblem[] {
-    return this.records().flatMap(({ item, record }) => record.steps.flatMap((step) => {
-      if (stageEventProblems(step.event).length > 0) return [];
-      return check(step.event, step, record, item).map((message) => ({ rule, caseName: item.name, step: step.index, message }));
-    }));
+    return this.records().flatMap(({ item, record }) => record.steps.flatMap((step) =>
+      check(step.event, step, record, item).map((message) => ({ rule, caseName: item.name, step: step.index, message }))));
   }
 
   private causeProblems(event: StageEvent, record: StageRunRecord<World>): string[] {
@@ -290,17 +289,13 @@ class Checker<World> {
   }
 
   // The event checks that matter most for text the subject was not built
-  // for. Each message names the check, since all of them are reported
-  // under hostile-input-safe.
+  // for. The run path already checked each event's shape. Each message
+  // names the check, since all of them are reported under hostile-input-safe.
   private hostileRecordProblems(record: StageRunRecord<World>, view: string): { step: number; message: string }[] {
-    return record.steps.flatMap((step) => {
-      const shape = stageEventProblems(step.event);
-      if (shape.length > 0) return shape.map((message) => ({ step: step.index, message: `event-shape: ${message}` }));
-      return [
-        ...this.causeProblems(step.event, record).map((message) => `causes-exist: ${message}`),
-        ...this.targetProblems(step.event, step, record, view).map((message) => `targets-exist: ${message}`),
-      ].map((message) => ({ step: step.index, message }));
-    });
+    return record.steps.flatMap((step) => [
+      ...this.causeProblems(step.event, record).map((message) => `causes-exist: ${message}`),
+      ...this.targetProblems(step.event, step, record, view).map((message) => `targets-exist: ${message}`),
+    ].map((message) => ({ step: step.index, message })));
   }
 
   private timedRun(caseName: string, sources: Record<string, string>): ConformanceProblem[] {
@@ -313,7 +308,10 @@ class Checker<World> {
     // The run path turns a throw or a broken record into a plain problem
     // for the learner. The subject is still at fault, so the suite reads
     // the reason the run path kept.
-    if (report.internal !== undefined) {
+    if (report.eventProblems !== undefined) {
+      problems.push(...report.eventProblems
+        .map(({ step, message }) => ({ rule: "hostile-input-safe" as const, caseName, step, message: `event-shape: ${message}` })));
+    } else if (report.internal !== undefined) {
       problems.push({ rule: "hostile-input-safe", caseName, message: `The run had an internal fault: ${report.internal}` });
     } else if (report.result.ok) {
       problems.push(...this.hostileRecordProblems(report.result.record, base.view)

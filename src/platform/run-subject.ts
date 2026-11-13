@@ -11,7 +11,7 @@
 
 import { checkRunSize, checkSourceLimits } from "./limits";
 import { assertRunRecordInvariants, type EngineProblem, type EngineResult, type StageRunRecord } from "./run-record";
-import { isPlainRecord } from "./stage-event";
+import { isPlainRecord, stageEventProblems } from "./stage-event";
 import { lookup, type Subject, type SubjectRunInput } from "./subject";
 import { quotedName, thrownMessage } from "./text";
 
@@ -33,8 +33,13 @@ const INVALID_REQUEST: EngineProblem = Object.freeze({
 export type RunResult<World> = EngineResult<StageRunRecord<World>>;
 
 // The result for the learner, plus the developer-facing reason when the
-// subject itself was at fault. The conformance suite reads the reason.
-export type RunReport<World> = { result: RunResult<World>; internal?: string };
+// subject itself was at fault. The conformance suite reads the reason, and
+// reads eventProblems to report a malformed event under its own rule.
+export type RunReport<World> = {
+  result: RunResult<World>;
+  internal?: string;
+  eventProblems?: { step: number; message: string }[];
+};
 
 function failed<World>(problem: EngineProblem): RunResult<World> {
   return { ok: false, problem };
@@ -42,6 +47,14 @@ function failed<World>(problem: EngineProblem): RunResult<World> {
 
 function internal<World>(reason: string): RunReport<World> {
   return { result: failed(INTERNAL_ERROR), internal: reason };
+}
+
+// Compares key by key, so two records with the same entries in a different
+// order are equal.
+function sameEntries(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => Object.hasOwn(b, key) && Object.is(a[key], b[key]));
 }
 
 function isProblem(value: unknown): value is EngineProblem {
@@ -84,6 +97,20 @@ export function runSubjectWithReport<World>(subject: Subject<World>, input: Subj
       assertRunRecordInvariants(result.record);
     } catch (error) {
       return internal(`The run record breaks an invariant: ${thrownMessage(error)}`);
+    }
+    // Measures and causes read the record's own copy of the input, so a
+    // subject that changes it could point at text the learner never wrote.
+    const config: unknown = result.record.config;
+    if (!isPlainRecord(config) || !isPlainRecord(config.sources) || !isPlainRecord(config.options)) {
+      return internal("The run record has no sources and options.");
+    }
+    if (!sameEntries(config.sources, input.sources)) return internal("The run record's sources differ from the text the run was given.");
+    if (!sameEntries(config.options, input.options)) return internal("The run record's options differ from the options the run was given.");
+    const eventProblems = result.record.steps.flatMap((step) =>
+      stageEventProblems(step.event).map((message) => ({ step: step.index, message })));
+    const [first] = eventProblems;
+    if (first !== undefined) {
+      return { ...internal(`The event of step ${first.step} is not valid: ${first.message}`), eventProblems };
     }
     return { result };
   } catch (error) {

@@ -99,6 +99,19 @@ export type BrokenSubject = { rule: ConformanceRule; also?: ConformanceRule[]; s
 export const BROKEN_SUBJECTS: BrokenSubject[] = [
   { rule: "deterministic", subject: nondeterministic() },
   { rule: "record-invariants", also: ["hostile-input-safe"], subject: withSteps((step) => ({ ...step, index: step.index + 1 })) },
+  // Claims more text than the learner wrote, so causes could point past it.
+  {
+    rule: "record-invariants",
+    also: ["hostile-input-safe"],
+    subject: counterSubjectWith({
+      run: (input) => {
+        const result = counterRun(input);
+        if (!result.ok) return result;
+        const sources = { ...result.record.config.sources, counters: `${input.sources.counters ?? ""}\ncheck extra` };
+        return { ok: true, record: { ...result.record, config: { ...result.record.config, sources } } };
+      },
+    }),
+  },
   { rule: "event-shape", also: ["hostile-input-safe"], subject: withEvents((event) => (event.kind === "check" ? { ...event, summary: "" } : event)) },
   {
     rule: "causes-exist",

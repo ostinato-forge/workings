@@ -107,6 +107,45 @@ describe("runSubject", () => {
     expect(report.internal).toBeDefined();
   });
 
+  test.each<[string, (record: StageRunRecord<World>) => StageRunRecord<World>, RegExp]>([
+    ["sources that differ", (record) => ({ ...record, config: { ...record.config, sources: { main: "1\n2" } } }), /sources differ/],
+    ["sources with a file missing", (record) => ({ ...record, config: { ...record.config, sources: {} } }), /sources differ/],
+    ["sources with a file added", (record) => ({ ...record, config: { ...record.config, sources: JSON.parse('{"main": "1", "__proto__": "1"}') } }), /sources differ/],
+    ["options that differ", (record) => ({ ...record, config: { ...record.config, options: { fast: true } } }), /options differ/],
+    ["options with one missing", (record) => ({ ...record, config: { ...record.config, options: {} } }), /options differ/],
+  ])("reports a record with %s as an internal fault", (_name, change, reason) => {
+    const subject = sumSubject((value) => {
+      const result = sumRun(value);
+      return result.ok ? { ok: true, record: change(result.record) } : result;
+    });
+    const report = runSubjectWithReport(subject, { ...input("1"), options: { fast: false } });
+    expect(report.result).toEqual({ ok: false, problem: INTERNAL_ERROR });
+    expect(report.internal).toMatch(reason);
+  });
+
+  test("accepts a record whose options are in a different order", () => {
+    const subject = sumSubject((value) => {
+      const result = sumRun(value);
+      return result.ok ? { ok: true, record: { ...result.record, config: { ...result.record.config, options: { b: 2, a: 1 } } } } : result;
+    });
+    const report = runSubjectWithReport(subject, { ...input("1"), options: { a: 1, b: 2 } });
+    expect(report.internal).toBeUndefined();
+    expect(report.result.ok).toBe(true);
+  });
+
+  test("reports an event with a bad shape as an internal fault, with each problem", () => {
+    const subject = sumSubject((value) => {
+      const result = sumRun(value);
+      if (!result.ok) return result;
+      const steps = result.record.steps.map((step) => (step.index === 1 ? { ...step, event: { ...step.event, summary: "" } } : step));
+      return { ok: true, record: { ...result.record, steps } };
+    });
+    const report = runSubjectWithReport(subject, input("1\n2"));
+    expect(report.result).toEqual({ ok: false, problem: INTERNAL_ERROR });
+    expect(report.internal).toMatch(/step 1/i);
+    expect(report.eventProblems).toEqual([{ step: 1, message: "The event's summary is empty." }]);
+  });
+
   test("stops a run with too many steps", () => {
     const result = runSubject(sumSubject(), input(Array.from({ length: 1_000 }, () => "1").join("\n")));
     expect(result.ok).toBe(true);
