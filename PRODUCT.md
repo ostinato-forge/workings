@@ -57,6 +57,12 @@ Learners connect calls, results, conversation updates, and stopping behavior.
 A second lesson teaches bounded retries through the same engine and player.
 Learners do not need a model API key.
 
+The first lesson now starts with a working loop and explains each event beside
+its code and conversation state. Learners then diagnose missing feedback, repair
+execution and stopping, and handle an unfamiliar request-ID fault across requests
+of different lengths. Teaching design is reviewed before package drafting, and
+acceptance requires a separate review of the actual explanations and tasks.
+
 The initial drafts were generated in the authoring session and passed through
 local import, validation, preview, and acceptance. Separate authoring cost is
 unknown. The optional external generation adapter has not been run. A human

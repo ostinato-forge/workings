@@ -1,0 +1,27 @@
+{
+  "lessonRevision": 2,
+  "contentHash": "aede8a36242fa30b2dd72e6b2f7aec748fb6dff169dd9ec989e32ef6482413b0",
+  "unit": {
+    "passed": 209,
+    "total": 210,
+    "command": "npm test -- --maxWorkers=2",
+    "exception": "The route loader exceeded the default five-second test timeout while other CPU-heavy jobs were active."
+  },
+  "loaderRetry": {
+    "passed": 9,
+    "total": 9,
+    "command": "npx vitest run src/platform/catalog.test.ts --maxWorkers=1 --testTimeout=20000 --reporter=verbose",
+    "loaderDurationMs": 9469,
+    "note": "All loader assertions passed. No test assertions or checked-in timeouts were changed."
+  },
+  "build": "passed",
+  "draftBrowser": "passed",
+  "productionBrowser": "Both agent lesson journeys passed, including keyboard use, blocked storage, challenge failures and repairs, themes, responsive layouts, and accessibility checks.",
+  "visualReview": [
+    "Introduction in dark and light themes",
+    "Mobile introduction",
+    "Working example with code and messages beside the trace"
+  ],
+  "learnerPilot": "not run",
+  "originalCourseRegression": "passed: original AI keyboard journey, existing automation lesson and progress, saved links, missing routes, responsive layouts, themes, cabinet navigation, and storage failures"
+}

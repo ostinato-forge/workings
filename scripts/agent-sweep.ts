@@ -109,6 +109,20 @@ async function main() {
       page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
       page.on("request", (request) => { if (!request.url().startsWith(base) && !request.url().startsWith("data:") && !request.url().startsWith("blob:")) errors.push(`External browser request: ${request.url()}`); });
       await enter(page, lesson);
+      if (lesson.revision >= 2 && lesson.id === "tool-using-agent") {
+        await page.getByRole("heading", { name: "Three responsibilities", exact: true }).waitFor();
+        await accessibility(page, "revised introduction");
+        await page.screenshot({ path: ".workings/screenshots/agent-introduction-dark.png" });
+        await page.getByRole("switch").click();
+        await accessibility(page, "revised introduction light");
+        await page.screenshot({ path: ".workings/screenshots/agent-introduction-light.png" });
+        await page.setViewportSize({ width: 390, height: 844 });
+        await overflow(page);
+        await accessibility(page, "revised introduction mobile");
+        await page.screenshot({ path: ".workings/screenshots/agent-introduction-mobile.png" });
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await page.getByRole("switch").click();
+      }
       for (const beat of lesson.beats) {
         if (beat.kind === "play") {
           const go = page.getByRole("button", { name: "Continue", exact: true });
@@ -120,10 +134,38 @@ async function main() {
           await page.getByRole("button", { name: "Stop", exact: true }).click();
           assert(await go.isDisabled(), "Stopping is not completion.");
           await page.getByRole("button", { name: "Reset agent run", exact: true }).click();
+          if (beat.id === "build-your-agent" && lesson.revision >= 2) {
+            await predict(page, beat, beat.program);
+            await page.getByRole("button", { name: "Run agent", exact: true }).click();
+            await page.getByText(/their call IDs do not match earlier requests/).waitFor();
+            assert(await go.isDisabled(), "A run with mismatched IDs must not pass.");
+            const partial = { ...beat.program, observation: "append" as const };
+            await page.getByLabel(labels.observation, { exact: true }).selectOption("append");
+            await predict(page, beat, partial);
+            await page.getByRole("button", { name: "Run agent", exact: true }).click();
+            await page.getByRole("button", { name: "Two-item request: passed", exact: true }).waitFor();
+            await page.getByRole("button", { name: "Three-item request: needs work", exact: true }).click();
+            await page.getByText(/A successful tool lookup and a final answer are separate events/).waitFor();
+            assert(await go.isDisabled(), "Passing the short request must not pass the longer requests.");
+          }
           await solve(page, lesson, beat);
           await page.getByRole("button", { name: "Run agent", exact: true }).click();
           await page.waitForFunction(() => !(document.querySelector('button[aria-label="Continue"]') as HTMLButtonElement)?.disabled);
           await accessibility(page, `${lesson.id}/${beat.id}`);
+          if (beat.workedExample) {
+            await page.getByRole("button", { name: "Inspect event 2: Tool result for cable", exact: true }).click();
+            const inspector = page.locator(".agent-step-inspector");
+            assert(await inspector.locator("code").innerText() === "const result = await tools.execute(response);", "The tool event needs its actual operation.");
+            assert(await inspector.locator(".agent-message-list").getByText(/Tool replies/).count() === 0, "The tool result is not yet in the conversation.");
+            await page.getByRole("button", { name: "Inspect event 3: Update the conversation", exact: true }).click();
+            await inspector.getByText("Tool replies to call-1: cable, 0 in stock.", { exact: true }).waitFor();
+            await page.locator("main").evaluate((element) => { element.scrollTop = 200; });
+            await page.screenshot({ path: ".workings/screenshots/agent-worked-example.png" });
+            await page.setViewportSize({ width: 390, height: 844 });
+            await overflow(page);
+            await accessibility(page, "worked example mobile");
+            await page.setViewportSize({ width: 1440, height: 1000 });
+          }
           if (beat.mode === "challenge") {
             await page.getByText("Your agent passed every case.", { exact: true }).waitFor();
             assert(await page.getByText(/Solved without hints/).isVisible(), "Independent result is missing.");

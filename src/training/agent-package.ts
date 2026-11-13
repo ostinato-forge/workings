@@ -15,6 +15,9 @@ export type AgentPlayBeat = {
   prediction: { question: string; options: { id: AgentStatus; label: string }[] };
   hints: string[];
   navigationHint: string;
+  workedExample?: boolean;
+  debrief?: string;
+  solutionExplanation?: string;
 };
 export type AgentFreeBeat = FreePlayBeatBase & { program: AgentProgram; cases: AgentCase[] };
 export type AgentLesson = Lesson<AgentPlayBeat, AgentFreeBeat> & {
@@ -54,6 +57,7 @@ export function parseAgentLesson(value: unknown): AgentLesson {
     ids.add(id);
     if (beat.kind === "teach" || beat.kind === "recap") {
       require(text(beat.title) && text(beat.body), `${id}: title and explanation are required.`);
+      if (beat.sections !== undefined) require(list(beat.sections, 1, 6) && beat.sections.every((section) => object(section) && text(section.title) && text(section.body) && (section.code === undefined || text(section.code))), `${id}: teaching sections need a title, explanation, and optional code.`);
     } else if (beat.kind === "play" || beat.kind === "free-play") {
       require(programProblem(beat.program) === null, `${id}: ${programProblem(beat.program)}`);
       require(list(beat.cases, 1, 5), `${id}: one to five cases are required.`);
@@ -67,6 +71,8 @@ export function parseAgentLesson(value: unknown): AgentLesson {
       }
       if (beat.kind === "free-play") { require(text(beat.intro), `${id}: missing free-play introduction.`); continue; }
       plays += 1;
+      if (beat.workedExample !== undefined) require(typeof beat.workedExample === "boolean" && beat.mode === "observe" && beat.pass === "success" && Array.isArray(beat.editable) && beat.editable.length === 0, `${id}: a worked example must demonstrate a fixed successful program.`);
+      for (const field of ["debrief", "solutionExplanation"]) if (beat[field] !== undefined) require(text(beat[field]), `${id}: ${field} must explain the result.`);
       require(["observe", "build", "challenge"].includes(String(beat.mode)), `${id}: invalid experiment mode.`);
       require(["unhandled-tool", "turn-limit", "tool-error", "success"].includes(String(beat.pass)), `${id}: unknown success check.`);
       require(text(beat.title) && text(beat.goal) && text(beat.navigationHint), `${id}: missing experiment instructions.`);
@@ -130,6 +136,7 @@ export function validateAgentExercises(lesson: AgentLesson): { passed: boolean; 
         const goalMet = beat.pass === "success" ? checkAgent(goalRun, scenario).every((check) => check.passed) : goalRun.final.status === beat.pass;
         if (!goalMet) findings.push(`${beat.id}/${scenario.id}: objective is unreachable with the editable blocks.`);
         const initial = runAgent(beat.program, scenario);
+        if (beat.workedExample && !checkAgent(initial, scenario).every((check) => check.passed)) findings.push(`${beat.id}: the worked example must succeed before any edits.`);
         if (!beat.prediction.options.some((option) => option.id === initial.final.status)) findings.push(`${beat.id}: prediction omits the starting program's outcome.`);
       }
     }

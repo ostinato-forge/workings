@@ -7,6 +7,18 @@ test.each(Object.entries(accepted))("accepted package %s has valid exercises", (
   expect(validateAgentExercises(parseAgentLesson(raw))).toMatchObject({ passed: true, findings: [] });
 });
 
+test("a worked example must demonstrate success without learner edits", () => {
+  const lesson = structuredClone(referencePackage());
+  const example = lesson.beats[1]!;
+  if (example.kind !== "play") throw new Error("Fixture");
+  example.mode = "observe";
+  example.workedExample = true;
+  example.pass = "success";
+  example.editable = [];
+  example.program.observation = "discard";
+  expect(validateAgentExercises(parseAgentLesson(lesson)).findings.join()).toMatch(/worked example must succeed/);
+});
+
 
 test("a supported package has reachable experiments and rejects known wrong programs", () => {
   const lesson = parseAgentLesson(referencePackage());

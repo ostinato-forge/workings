@@ -2,6 +2,7 @@ type TeachingCopy = {
   id: string;
   title: string;
   body: string;
+  sections?: { title: string; body: string; code?: string }[];
 };
 
 export type TeachingBeat =

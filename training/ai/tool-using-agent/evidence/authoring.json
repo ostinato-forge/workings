@@ -1,10 +1,11 @@
 {
-  "fingerprint": "72e21a3619056650b923a8d17acf6f3eb7a505d6d04da0f3cf3d338be75d5f25",
+  "fingerprint": "13e406fac45d5772b33087459800de49e9cfffad2e118e800c35ea9fb5ab6665",
   "inputHashes": {
-    "brief": "e7b68058aa195cde3e8157be6504e92dc532c6c937ae6c3c39a162aa72a48bd3",
-    "sources": "861712efb2a9f8ea6afcf34dce4bd3d7fb112e7ad94344cee57077a0c971f9e6"
+    "brief": "5257ead1914686a00cb65017efbf94c9665b8ed03c274a4a5b7f3ce5d6fe45cc",
+    "sources": "861712efb2a9f8ea6afcf34dce4bd3d7fb112e7ad94344cee57077a0c971f9e6",
+    "plan": "8b90dfa197a25b589447c5229077a293adb2708ada9ebfef6bb1766b2e734edf"
   },
-  "contentHash": "3a88e4143a6afa18f3e95c8608cefdf20507c466dd43d35c663c3fd8d5efce1b",
+  "contentHash": "aede8a36242fa30b2dd72e6b2f7aec748fb6dff169dd9ec989e32ef6482413b0",
   "writer": "current assistant session",
   "automatedProviderRun": false,
   "usage": {
@@ -13,5 +14,5 @@
     "estimatedUsd": null
   },
   "note": "Generated from the brief in the current session and imported for local validation. Separate authoring usage was not metered. No additional provider call ran.",
-  "importedAt": "2026-09-27T20:50:20.350Z"
+  "importedAt": "2026-09-27T21:55:38.560Z"
 }

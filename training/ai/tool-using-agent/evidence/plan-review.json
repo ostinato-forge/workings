@@ -1,0 +1,11 @@
+{
+  "status": "reviewed",
+  "hashes": {
+    "brief": "5257ead1914686a00cb65017efbf94c9665b8ed03c274a4a5b7f3ce5d6fe45cc",
+    "sources": "861712efb2a9f8ea6afcf34dce4bd3d7fb112e7ad94344cee57077a0c971f9e6",
+    "plan": "8b90dfa197a25b589447c5229077a293adb2708ada9ebfef6bb1766b2e734edf"
+  },
+  "reviewedAt": "2026-09-27T21:45:06.549Z",
+  "source": "local author review",
+  "note": "Reviewed the prerequisite chain and each planned task. The working example precedes missing-result practice. Request identity and termination are taught before the challenge. Transfer changes result identity and request length. Runtime examples and final copy still require review."
+}

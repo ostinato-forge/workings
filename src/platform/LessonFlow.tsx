@@ -80,6 +80,11 @@ export function LessonFlow<Play extends PlayBeatBase, Free extends FreePlayBeatB
           <section className="panel">
             <h2>{beat.title}</h2>
             <p>{beat.body}</p>
+            {beat.sections?.map((section) => <section className="teaching-section" key={section.title}>
+              <h3>{section.title}</h3>
+              <p>{section.body}</p>
+              {section.code ? <pre tabIndex={0}><code>{section.code}</code></pre> : null}
+            </section>)}
           </section>
         </div>
       ) : null}

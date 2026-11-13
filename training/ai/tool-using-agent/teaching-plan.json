@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "lessonId": "tool-using-agent",
+  "objective": "Build and diagnose a bounded loop that executes tool requests, returns matching results, and finishes with an answer supported by those results.",
+  "audience": "People who use AI assistants and can read simple loops and objects.",
+  "prerequisites": [
+    "Read a function call, condition, loop, and object field. No model API experience is required."
+  ],
+  "scenario": "A support assistant needs current inventory counts for a customer. The model can ask for a lookup; the application must run it and supply the result.",
+  "workedExample": "follow-one-request",
+  "steps": [
+    {
+      "id": "meet-the-task",
+      "kind": "teach",
+      "purpose": "Establish the user task, three responsibilities, and the meaning of a tool request and conversation."
+    },
+    {
+      "id": "follow-one-request",
+      "kind": "play",
+      "purpose": "Inspect a complete working loop, with real engine events, code, and message history side by side."
+    },
+    {
+      "id": "missing-result",
+      "kind": "play",
+      "purpose": "Predict and observe a loop with one missing operation before receiving its explanation."
+    },
+    {
+      "id": "return-the-result",
+      "kind": "play",
+      "purpose": "Repair result handling using the evidence from the preceding experiment."
+    },
+    {
+      "id": "request-and-result",
+      "kind": "teach",
+      "purpose": "Compare a matching request/result pair with an unrelated ID. Explain who executes a tool."
+    },
+    {
+      "id": "execute-the-tool",
+      "kind": "play",
+      "purpose": "Diagnose a loop that produces a request but no tool result."
+    },
+    {
+      "id": "finish-the-loop",
+      "kind": "teach",
+      "purpose": "Distinguish the answer branch from the call limit. Derive the call budget for the simulated policy."
+    },
+    {
+      "id": "return-the-answer",
+      "kind": "play",
+      "purpose": "Repair a loop that continues after receiving a final answer."
+    },
+    {
+      "id": "build-your-agent",
+      "kind": "play",
+      "purpose": "Apply message matching and budget reasoning to a new broken loop and requests of different lengths."
+    },
+    {
+      "id": "what-you-built",
+      "kind": "recap",
+      "purpose": "Reconnect the code to each responsibility and explain what changes with a real model adapter."
+    },
+    {
+      "id": "free-play",
+      "kind": "free-play",
+      "purpose": "Change one operation at a time and explain the difference using trace evidence."
+    }
+  ],
+  "concepts": [
+    {
+      "id": "tool-dispatch",
+      "explanation": "A client tool request describes a function and inputs; the application executes it.",
+      "taughtIn": "meet-the-task",
+      "practicedIn": "execute-the-tool",
+      "assessedIn": "build-your-agent"
+    },
+    {
+      "id": "conversation",
+      "explanation": "A tool result held in a local variable is absent from the next model input until the application adds it.",
+      "taughtIn": "follow-one-request",
+      "practicedIn": "return-the-result",
+      "assessedIn": "build-your-agent"
+    },
+    {
+      "id": "call-identity",
+      "explanation": "The result must retain the identifier of the request it answers.",
+      "taughtIn": "request-and-result",
+      "practicedIn": "execute-the-tool",
+      "assessedIn": "build-your-agent"
+    },
+    {
+      "id": "termination",
+      "explanation": "Returning an answer completes the task; reaching a limit can stop unfinished work.",
+      "taughtIn": "finish-the-loop",
+      "practicedIn": "return-the-answer",
+      "assessedIn": "build-your-agent"
+    }
+  ],
+  "misconceptions": [
+    {
+      "belief": "The model runs a tool by naming it.",
+      "evidenceStep": "execute-the-tool",
+      "feedback": "A model request followed by a stop has no tool execution event."
+    },
+    {
+      "belief": "A successful function call automatically informs the model.",
+      "evidenceStep": "missing-result",
+      "feedback": "The tool event has output, while the conversation has no result message."
+    },
+    {
+      "belief": "Any stock value in the conversation answers the request.",
+      "evidenceStep": "build-your-agent",
+      "feedback": "Compare the request ID with the result callId; matching item names alone are insufficient in this protocol."
+    },
+    {
+      "belief": "A stopped loop means the task succeeded.",
+      "evidenceStep": "return-the-answer",
+      "feedback": "Inspect whether the application returned an answer or merely exhausted its call budget."
+    }
+  ],
+  "transfer": {
+    "step": "build-your-agent",
+    "task": "Repair a new loop so one program answers all inventory requests within eight model calls.",
+    "changes": [
+      "A result is present with an unrelated call ID, unlike the missing result in practice.",
+      "The requests contain two or three items in different orders, so three calls do not suffice for every case."
+    ],
+    "withheldGuidance": "The task states outcomes and constraints. It does not identify faulty fields or name the correct options. Hints and solution are separate."
+  },
+  "claimSources": [
+    {
+      "step": "meet-the-task",
+      "sourceId": "tool-results",
+      "claim": "For client tools, the application executes model requests and returns results."
+    },
+    {
+      "step": "request-and-result",
+      "sourceId": "tool-results",
+      "claim": "The result is associated with the tool request it answers. Our field names are a simplified teaching protocol."
+    },
+    {
+      "step": "finish-the-loop",
+      "sourceId": "agent-loop",
+      "claim": "Agent loops use tool feedback and stopping conditions. The exact call-count formula is specific to our engine."
+    }
+  ]
+}

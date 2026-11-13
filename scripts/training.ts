@@ -4,15 +4,34 @@ import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { parse as parseYaml } from "yaml";
 import { parseAgentLesson, validateAgentExercises } from "../src/training/agent-package";
+import { parseTeachingPlan, checkPlanCoverage, checkTeachingReview } from "./teaching-review";
 
 const root = resolve(import.meta.dirname, "..");
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
-export function briefMetadata(brief: string): { id: string; topic: string } {
+export function briefMetadata(brief: string): { id: string; topic: string; objective: string } {
   const front = brief.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!front) throw new Error("TRAINING.md needs YAML front matter.");
   const data = parseYaml(front[1]!);
   if (data?.format !== 1 || data.engine !== "agent-loop/1" || typeof data.id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.id) || !["tools", "retries"].includes(data.topic) || typeof data.objective !== "string" || !data.objective.trim() || typeof data.audience !== "string" || !data.audience.trim()) throw new Error("The brief needs format, ID, topic, engine, audience, and objective.");
   return data;
+}
+
+async function teachingInputs(directory: string, requireReview = true) {
+  const [brief, sources, planText] = await Promise.all([
+    readFile(join(directory, "TRAINING.md"), "utf8"),
+    readFile(join(directory, "sources.json"), "utf8"),
+    readFile(join(directory, "teaching-plan.json"), "utf8"),
+  ]);
+  const meta = briefMetadata(brief);
+  const bundle = JSON.parse(sources) as { id: string; url: string }[];
+  const plan = parseTeachingPlan(JSON.parse(planText), meta.id, bundle.map((source) => source.id));
+  if (plan.objective !== meta.objective) throw new Error("The teaching plan must retain the brief's objective.");
+  const hashes = { brief: digest(brief), sources: digest(sources), plan: digest(planText) };
+  if (requireReview) {
+    const review = JSON.parse(await readFile(join(directory, "evidence/plan-review.json"), "utf8"));
+    if (review.status !== "reviewed" || !review.note || Object.entries(hashes).some(([key, value]) => review.hashes?.[key] !== value)) throw new Error("The teaching plan review is stale. Review the current plan before generating a package.");
+  }
+  return { brief, sources, planText, plan, meta, hashes };
 }
 
 export type Usage = { calls: number; tokens: number; estimatedUsd: number; models: string[] };
@@ -60,26 +79,40 @@ export async function validateFile(path: string) {
 async function main() {
   const [command, target, ...args] = process.argv.slice(2);
   const option = (name: string) => { const index = args.indexOf(name); return index < 0 ? undefined : args[index + 1]; };
-  if (!target || !["generate", "import", "validate", "accept", "preview"].includes(command ?? "")) throw new Error("Use training generate <brief-directory> --budget-usd N, or import|validate|preview|accept <draft.json>. Import requires --brief <directory>; accept requires --reviewed.");
+  if (!target || !["review-plan", "generate", "import", "validate", "accept", "preview"].includes(command ?? "")) throw new Error("Use review-plan <brief-directory>, generate <brief-directory> --budget-usd N, or import|validate|preview|accept <draft.json>. Import and accept require --brief <directory>.");
+  if (command === "review-plan") {
+    if (!args.includes("--reviewed") || !option("--note")?.trim()) throw new Error("Review the teaching design first, then record --reviewed with a specific --note.");
+    const directory = resolve(target);
+    const input = await teachingInputs(directory, false);
+    await mkdir(join(directory, "evidence"), { recursive: true });
+    await writeFile(join(directory, "evidence/plan-review.json"), JSON.stringify({ status: "reviewed", hashes: input.hashes, reviewedAt: new Date().toISOString(), source: "local author review", note: option("--note") }, null, 2) + "\n");
+    console.log("Teaching design review recorded. Draft the lesson from this sequence, then review the actual content separately.");
+    return;
+  }
   if (command !== "generate") {
     const path = resolve(target);
     const { lesson, report } = await validateFile(path);
     if (!report.passed) throw new Error(report.findings.join("\n"));
+    let teaching: Awaited<ReturnType<typeof teachingInputs>> | undefined;
+    if (command === "import" || command === "accept") {
+      const briefDir = option("--brief");
+      if (!briefDir) throw new Error("Import and accept need --brief <directory> and a reviewed teaching plan.");
+      teaching = await teachingInputs(resolve(briefDir));
+      const findings = checkPlanCoverage(lesson, teaching.plan);
+      if (findings.length) throw new Error(findings.join("\n"));
+      const allowed = JSON.parse(teaching.sources) as { url: string }[];
+      if (lesson.sources.some((source) => !allowed.some((item) => item.url === source.url))) throw new Error("The draft cites a source outside its reviewed bundle.");
+    }
     if (command === "import") {
       const briefDir = option("--brief");
       if (!briefDir) throw new Error("Import needs --brief <directory> to record its inputs.");
-      const brief = await readFile(join(resolve(briefDir), "TRAINING.md"), "utf8");
-      const meta = briefMetadata(brief);
-      const sources = await readFile(join(resolve(briefDir), "sources.json"), "utf8");
-      if (lesson.id !== meta.id || lesson.topic !== meta.topic) throw new Error("The draft does not match its brief.");
-      const allowed = JSON.parse(sources) as { url: string }[];
-      if (lesson.sources.some((source) => !allowed.some((item) => item.url === source.url))) throw new Error("The draft cites a source outside its reviewed bundle.");
-      const fingerprint = digest(brief + sources + report.contentHash);
+      const { brief, sources } = teaching!;
+      const fingerprint = digest(brief + sources + teaching!.planText + report.contentHash);
       const runDir = join(root, ".workings/runs", `${lesson.id}-session-${fingerprint.slice(0, 12)}`);
       await mkdir(runDir, { recursive: true });
       await copyFile(path, join(runDir, "draft.json"));
       await writeFile(join(runDir, "validation.json"), JSON.stringify(report, null, 2) + "\n");
-      const provenance = { fingerprint, inputHashes: { brief: digest(brief), sources: digest(sources) }, contentHash: report.contentHash,
+      const provenance = { fingerprint, inputHashes: teaching!.hashes, contentHash: report.contentHash,
         writer: "current assistant session", automatedProviderRun: false, usage: { calls: null, tokens: null, estimatedUsd: null },
         note: "Generated from the brief in the current session and imported for local validation. Separate authoring usage was not metered. No additional provider call ran.",
         importedAt: new Date().toISOString() };
@@ -92,6 +125,9 @@ async function main() {
       console.log(`Imported current-session draft: ${runDir}`);
     } else if (command === "accept") {
       if (!args.includes("--reviewed")) throw new Error("Read the lesson and source evidence before accepting it. Pass --reviewed to record that review.");
+      const reviewPath = join(resolve(option("--brief")!), "evidence/teaching-review.json");
+      const teachingReview = JSON.parse(await readFile(reviewPath, "utf8"));
+      checkTeachingReview(teachingReview, lesson, { ...teaching!.hashes, content: report.contentHash });
       const dest = join(root, "src/content/lessons", `${lesson.id}.json`);
       await mkdir(dirname(dest), { recursive: true });
       const old = await readFile(dest, "utf8").catch((error) => { if (error.code === "ENOENT") return null; throw error; });
@@ -106,7 +142,7 @@ async function main() {
       }));
       entries.sort((a, b) => Number(b.id === "tool-using-agent") - Number(a.id === "tool-using-agent"));
       await writeFile(join(root, "src/content/catalog.json"), JSON.stringify(entries, null, 2) + "\n");
-      const review = { ...report, reviewedAt: new Date().toISOString(), source: "local author review", note: option("--note") ?? "Reviewed content, hints, and source support. Browser and learner trials are separate checks." };
+      const review = { ...report, teachingReview, reviewedAt: new Date().toISOString(), source: "local author review", note: option("--note") ?? "Reviewed content, hints, and source support. Browser and learner trials are separate checks." };
       await mkdir(join(root, "training/reviews"), { recursive: true });
       await writeFile(join(root, "training/reviews", `${lesson.id}.json`), JSON.stringify(review, null, 2) + "\n");
       console.log(`Accepted ${dest}`);
@@ -123,11 +159,13 @@ async function main() {
   const maxCalls = Number(option("--max-calls") ?? 3);
   if (!Number.isFinite(budget) || budget <= 0 || !Number.isInteger(maxTokens) || maxTokens <= 0 || !Number.isInteger(maxCalls) || maxCalls < 1 || maxCalls > 3) throw new Error("Provide a positive dollar budget and token limit, with one to three calls.");
   const directory = resolve(target);
-  const brief = await readFile(join(directory, "TRAINING.md"), "utf8");
-  const meta = briefMetadata(brief);
-  const sources = await readFile(join(directory, "sources.json"), "utf8");
+  const { brief, meta, sources, planText, plan } = await teachingInputs(directory);
   const [contract, engine, driver] = await Promise.all(["src/training/agent-package.ts", "src/engine/agent-loop.ts", "scripts/training.ts"].map((path) => readFile(join(root, path), "utf8")));
-  const fingerprint = digest(JSON.stringify({ brief, sources, contract, engine, driver, provider: "claude-cli-default", budget, maxTokens, maxCalls }));
+  const designRules = await readFile(join(root, "training/DESIGN.md"), "utf8");
+  const reviewRules = await readFile(join(root, "scripts/teaching-review.ts"), "utf8");
+  const accepted = await readFile(join(root, "src/content/lessons", `${meta.id}.json`), "utf8").catch((error) => { if (error.code === "ENOENT") return null; throw error; });
+  const revision = accepted ? parseAgentLesson(JSON.parse(accepted)).revision + 1 : 1;
+  const fingerprint = digest(JSON.stringify({ brief, sources, planText, designRules, reviewRules, revision, contract, engine, driver, provider: "claude-cli-default", budget, maxTokens, maxCalls }));
   const runDir = join(root, ".workings/runs", `${meta.id}-${fingerprint.slice(0, 12)}`);
   await mkdir(runDir, { recursive: true });
   const statePath = join(runDir, "usage.json");
@@ -136,8 +174,26 @@ async function main() {
   try { state = JSON.parse(await readFile(statePath, "utf8")); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   if (state.status === "calling" || state.status === "usage-unknown") throw new Error("The previous call has unknown usage. Inspect its provider output before starting another paid run.");
   const draftPath = join(runDir, "draft.json");
-  if (state.status === "validated") { const existing = await validateFile(draftPath); if (existing.report.passed) { console.log(`Reused validated draft: ${draftPath}`); return; } }
-  const prompt = `Generate one complete original AgentLesson JSON object. Do not return markdown or code fences. Follow this brief exactly. All text fields must be plain English. Use the types and validation rules below. Each play prediction must cover outcomes of its initial program, and cover complete, unhandled-tool and turn-limit. A stage with pass=turn-limit must keep observation=discard when dispatch is fixed. All cases use expected=complete unless the retry brief explicitly requests persistent failure. Give free-play its own program and cases. Use schemaVersion=1, revision=1, engine=agent-loop/1, id=${meta.id}, topic=${meta.topic}. Source entries have url and claim. The top-level objective is a string. Every play has kind, id, title, goal, mode, program, editable, cases, pass, prediction, hints, navigationHint. Teach and recap have kind, id, title, body. Free-play has kind, id, intro, program, cases.\n\nBRIEF\n${brief}\n\nSOURCE EVIDENCE\n${sources}\n\nCONTRACT AND VALIDATION\n${contract}\n\nENGINE\n${engine}`;
+  if (state.status === "validated") { const existing = await validateFile(draftPath); if (existing.report.passed && checkPlanCoverage(existing.lesson, plan).length === 0) { console.log(`Reused validated draft: ${draftPath}`); return; } }
+  const prompt = `Write the learner-facing content for the reviewed teaching design below, then encode it as one AgentLesson JSON object. Return JSON only. The design review has happened; do not invent a different sequence to fit the player. Preserve the objective, step IDs, and purposes. Explain concepts through concrete messages and code before asking learners to repair them. Separate guided practice from the independent task. Predictions must not reveal their answer in the preceding instruction. Give every play step a debrief and solutionExplanation; these appear only after the relevant run or solution reveal. Teaching steps may have sections: [{title, body, code?}]. Mark the fixed working example with workedExample=true. Its initial program must succeed. Use the engine to check examples and call counts; do not generalize simulated behavior to live models. Source entries have url and claim. Use schemaVersion=1, revision=${revision}, engine=agent-loop/1, id=${meta.id}, topic=${meta.topic}. All play predictions need options for the reachable outcomes, with outcome IDs from the contract. The application will validate structure and mechanics; that does not establish teaching quality. Do not output a self-awarded review.
+
+AUTHORING RULES
+${designRules}
+
+BRIEF
+${brief}
+
+REVIEWED TEACHING PLAN
+${planText}
+
+SOURCE EVIDENCE
+${sources}
+
+CONTRACT AND VALIDATION
+${contract}
+
+ENGINE
+${engine}`;
   for (; state.usage.calls < maxCalls;) {
     if (state.usage.estimatedUsd >= budget || state.usage.tokens >= maxTokens) throw new Error(`Run budget reached. Progress is saved in ${runDir}`);
     state.status = "calling";
@@ -166,7 +222,8 @@ async function main() {
       const { lesson, report } = await validateFile(draftPath);
       if (lesson.id !== meta.id || lesson.topic !== meta.topic) throw new Error("Generated lesson changed the brief's identity or objective.");
       await writeFile(join(runDir, "validation.json"), JSON.stringify(report, null, 2) + "\n");
-      if (!report.passed) throw new Error(report.findings.join("\n"));
+      const coverage = checkPlanCoverage(lesson, plan);
+      if (!report.passed || coverage.length) throw new Error([...report.findings, ...coverage].join("\n"));
       state.status = "validated";
       state.findings = [];
     } catch (error) { state.status = "needs-repair"; state.findings = [String(error)]; }

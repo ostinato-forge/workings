@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "revision": 1,
+  "revision": 2,
   "engine": "agent-loop/1",
   "topic": "tools",
   "id": "tool-using-agent",
   "title": "Build an agent that can use a tool",
-  "description": "Connect a tool, return its results, and stop an agent when its task is done.",
-  "objective": "Build a bounded loop that executes tool requests, returns matching results, and finishes with an answer supported by those results.",
+  "description": "Follow a working agent loop, diagnose missing tool feedback, and repair a new program.",
+  "objective": "Build and diagnose a bounded loop that executes tool requests, returns matching results, and finishes with an answer supported by those results.",
   "sources": [
     {
       "url": "https://www.anthropic.com/engineering/building-effective-agents",
@@ -21,20 +21,39 @@
     {
       "kind": "teach",
       "id": "meet-the-task",
-      "title": "Give the agent a way to check",
-      "body": "A user asks whether two items are in stock. The answer lives in an inventory, outside the model. You will build the loop around the model so it can request a lookup, receive the result, and answer. A tool call is a structured request to run a function. Our lookup_stock tool reads a local practice inventory. Model responses are simulated; the tool and the program you build execute in your browser. Use Step to follow one operation at a time, or Run to follow the whole loop."
+      "title": "What are you building?",
+      "body": "A customer asks, \"Are the cable and dock in stock?\" A useful answer needs current inventory data. A model response alone does not read that inventory. You will build the application code that gives the model a way to request facts, receive them, and answer.",
+      "sections": [
+        {
+          "title": "Three responsibilities",
+          "body": "The model produces a response: a request to use a tool, or an answer. The application is the code you write. It inspects that response and decides what to run next. The tool is an ordinary function. Here, lookup_stock reads one item from an inventory and returns its stock count."
+        },
+        {
+          "title": "A tool call is a request",
+          "body": "The model can produce the request below. The name identifies the function. The arguments supply its input. The id identifies this particular request. Nothing has read the inventory yet. The application must call the function before a stock count exists.",
+          "code": "{ kind: \"tool-call\", id: \"call-1\",\n  name: \"lookup_stock\", arguments: { item: \"cable\" } }"
+        },
+        {
+          "title": "What the next model call receives",
+          "body": "The conversation is a list of messages. It starts with the user request. Your application adds model responses and tool results to that list, then sends it on the next model call. This repeated sequence is the agent loop you will build. The model cannot use a tool result that your code never sends."
+        },
+        {
+          "title": "How this practice works",
+          "body": "Model responses are simulated so you can repeat experiments without an API key. The loop and lookup function execute in your browser. This practice model asks for one missing item at a time and answers once matching results are present. Real models can behave differently. First, follow a working example. Then repair broken versions and test one repair on new requests."
+        }
+      ]
     },
     {
       "kind": "play",
-      "id": "a-request-is-not-an-action",
-      "title": "A request needs an executor",
-      "goal": "The model can request lookup_stock, but this program stops before executing the request. Predict its outcome, then run it. Inspect the request and the conversation.",
+      "id": "follow-one-request",
+      "title": "Follow a working loop",
+      "goal": "The customer needs a cable and a dock. This version already has a complete loop. Read the four blocks, then predict the outcome. Use Step on the cabinet to follow one operation at a time. For each event, compare the code with the conversation below it. Run completes the same sequence automatically.",
       "mode": "observe",
       "program": {
-        "dispatch": "stop",
-        "observation": "discard",
+        "dispatch": "execute",
+        "observation": "append",
         "finish": "return",
-        "maxTurns": 5,
+        "maxTurns": 4,
         "onError": "stop",
         "retries": 0
       },
@@ -54,48 +73,49 @@
           "expected": "complete"
         }
       ],
-      "pass": "unhandled-tool",
+      "pass": "success",
       "prediction": {
-        "question": "What will your current program do?",
+        "question": "What will this complete loop return?",
         "options": [
           {
             "id": "complete",
-            "label": "Return the stock counts and stop"
+            "label": "Return the requested stock counts and stop"
           },
           {
             "id": "unhandled-tool",
-            "label": "Stop with a tool request waiting"
+            "label": "Stop before executing a requested lookup"
           },
           {
             "id": "turn-limit",
-            "label": "Use up the model-call limit"
+            "label": "Reach the call limit without returning an answer"
           }
         ]
       },
       "hints": [
-        "Find the last event in the trace.",
-        "A tool request names an operation; it does not execute itself.",
-        "The application needs to run the requested tool."
+        "Follow the first model request, then the tool event.",
+        "A tool result must enter the conversation before the next model call can use it.",
+        "After both matching results are available, the model can answer and the application can return it."
       ],
-      "navigationHint": "Predict the outcome, then press Run or Step."
+      "debrief": "Read events 2 and 3 together. Event 2 produces a stock count inside the application. Event 3 adds that result to the conversation. Those are separate operations. The next model call can then request the other item. Two lookups require three model calls here: one request per item, then one answer.",
+      "solutionExplanation": "Execute each lookup, keep its request ID on the result, and add the result to the conversation. When the response is an answer, return it. This example gives the loop four calls, although it needs only three.",
+      "navigationHint": "Predict, then use Step to follow the working example.",
+      "workedExample": true
     },
     {
       "kind": "play",
-      "id": "execute-the-tool",
-      "title": "Connect the tool",
-      "goal": "Change the block that handles a tool request so it executes the lookup. Keep the other blocks fixed for this experiment. Predict what happens when the program runs the tool but discards its result.",
-      "mode": "build",
+      "id": "missing-result",
+      "title": "What changed in this loop?",
+      "goal": "One operation has been removed from the working loop. The other operations and the customer request are unchanged. Inspect the blocks or matching code and predict the result before running. Afterwards, select a tool event and the conversation update that follows it. Compare what the function produced with what the next model call received.",
+      "mode": "observe",
       "program": {
-        "dispatch": "stop",
+        "dispatch": "execute",
         "observation": "discard",
         "finish": "return",
-        "maxTurns": 5,
+        "maxTurns": 4,
         "onError": "stop",
         "retries": 0
       },
-      "editable": [
-        "dispatch"
-      ],
+      "editable": [],
       "cases": [
         {
           "id": "desk-kit",
@@ -113,40 +133,42 @@
       ],
       "pass": "turn-limit",
       "prediction": {
-        "question": "What will your current program do?",
+        "question": "What does this changed program do?",
         "options": [
           {
             "id": "complete",
-            "label": "Return the stock counts and stop"
+            "label": "Return the requested stock counts and stop"
           },
           {
             "id": "unhandled-tool",
-            "label": "Stop with a tool request waiting"
+            "label": "Stop before executing a requested lookup"
           },
           {
             "id": "turn-limit",
-            "label": "Use up the model-call limit"
+            "label": "Reach the call limit without returning an answer"
           }
         ]
       },
       "hints": [
-        "Look for a tool result in the trace.",
-        "The executor must turn the model's request into a function call.",
-        "Set the tool-request block to execute the requested tool. Then inspect what happens to its result."
+        "Compare the number of messages before and after the conversation update.",
+        "A result can exist in a local variable without appearing in the next model input.",
+        "Look for the missing tool-result message after the first lookup."
       ],
-      "navigationHint": "Execute the tool, then inspect why the request repeats."
+      "debrief": "The inventory lookup succeeded, but the model input did not gain its result. This practice model therefore requests the cable again. Increasing the limit would only repeat the same incomplete exchange. The missing connection is between the function output and the conversation sent on the next call.",
+      "solutionExplanation": "Restore the operation that adds the tool result to messages. Keep its call ID so it answers the request that produced it. The next task lets you make that repair.",
+      "navigationHint": "Predict the effect of the missing operation, then inspect the run."
     },
     {
       "kind": "play",
       "id": "return-the-result",
-      "title": "Make the result available",
-      "goal": "The tool ran, but the conversation did not receive its result. The conversation is the message history sent on the next model call. Change how the program handles the result. A call ID links each result to the request it answers. Run your repair and inspect both lookups.",
+      "title": "Give the next call the missing information",
+      "goal": "Repair the connection you just inspected. Only result handling is editable here. Add the result to the conversation with the request ID that came back from the tool. Before running, predict how that change affects the next model response. Use the trace to check that the second lookup is for the dock rather than another cable lookup.",
       "mode": "build",
       "program": {
         "dispatch": "execute",
         "observation": "discard",
         "finish": "return",
-        "maxTurns": 5,
+        "maxTurns": 4,
         "onError": "stop",
         "retries": 0
       },
@@ -170,46 +192,204 @@
       ],
       "pass": "success",
       "prediction": {
-        "question": "What will your current program do?",
+        "question": "After your edit, what will the loop do?",
         "options": [
           {
             "id": "complete",
-            "label": "Return the stock counts and stop"
+            "label": "Return the requested stock counts and stop"
           },
           {
             "id": "unhandled-tool",
-            "label": "Stop with a tool request waiting"
+            "label": "Stop before executing a requested lookup"
           },
           {
             "id": "turn-limit",
-            "label": "Use up the model-call limit"
+            "label": "Reach the call limit without returning an answer"
           }
         ]
       },
       "hints": [
-        "Compare the tool result with the messages the model can see.",
-        "A result stored outside the conversation is missing from the next model call. An unrelated call ID also leaves the request unanswered.",
-        "Append the result to the conversation with its matching call ID."
+        "Inspect the conversation update after the cable lookup.",
+        "The next call needs a tool-result message associated with the cable request.",
+        "Choose the operation that appends the result with its call ID."
       ],
-      "navigationHint": "Return matching tool results, then run the loop."
+      "debrief": "The second model call now asks for the dock. That change follows from the added cable result: the practice model has evidence for the first item and asks for the next missing one. You changed the information available to the model, not the inventory or the answer.",
+      "solutionExplanation": "Append the tool result with its call ID. Discarding the result leaves it out of the next input. Replacing its ID adds data without a valid link to the request. Keeping the returned ID preserves both the value and that link.",
+      "navigationHint": "Repair result handling, predict, then check the next request."
+    },
+    {
+      "kind": "teach",
+      "id": "request-and-result",
+      "title": "Connect each result to its request",
+      "body": "A conversation can contain several tool requests. The application must preserve which result answers which request. A call ID is the identifier for one request. A tool result carries that identifier back.",
+      "sections": [
+        {
+          "title": "A matching pair",
+          "body": "The request has id \"call-1\". Its result has callId \"call-1\". The stock count is zero, which is a valid answer: the cable is out of stock. Zero is different from a missing result or an error.",
+          "code": "Request: { id: \"call-1\", name: \"lookup_stock\",\n           arguments: { item: \"cable\" } }\nResult:  { callId: \"call-1\", item: \"cable\", stock: 0 }"
+        },
+        {
+          "title": "Present does not always mean usable",
+          "body": "If the result instead says callId \"unmatched-call\", its item and stock fields still look plausible. It does not answer any recorded request. This simulator leaves the cable lookup unresolved. A real model service may reject malformed tool exchanges. Use the ID from the actual request rather than inventing a new one."
+        },
+        {
+          "title": "The application still has to run the function",
+          "body": "Keeping IDs is only useful if the function executes. The next program already preserves results correctly. Check what happens between the model request and the function output. This is the part of the loop that turns a requested action into an executed action.",
+          "code": "const result = await tools.execute(response);\nmessages.push(result);"
+        }
+      ]
+    },
+    {
+      "kind": "play",
+      "id": "execute-the-tool",
+      "title": "Find the missing execution",
+      "goal": "A field technician asks for battery and adapter stock. This program has result handling in place, but its first run does not return stock counts. Run the starting program and locate the last event. Then use the editable request-handling block to make the lookup happen. Inspect the request and result IDs after the repair.",
+      "mode": "build",
+      "program": {
+        "dispatch": "stop",
+        "observation": "append",
+        "finish": "return",
+        "maxTurns": 4,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [
+        "dispatch"
+      ],
+      "cases": [
+        {
+          "id": "field-kit",
+          "title": "Field kit",
+          "items": [
+            "battery",
+            "adapter"
+          ],
+          "inventory": {
+            "battery": 6,
+            "adapter": 0
+          },
+          "expected": "complete"
+        }
+      ],
+      "pass": "success",
+      "prediction": {
+        "question": "What happens with the request-handling block as currently set?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return the requested stock counts and stop"
+          },
+          {
+            "id": "unhandled-tool",
+            "label": "Stop before executing a requested lookup"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Reach the call limit without returning an answer"
+          }
+        ]
+      },
+      "hints": [
+        "Is there a tool event after the first model request?",
+        "Naming lookup_stock produces a request. The application still needs to execute the function.",
+        "Set request handling to execute the requested tool, then run again."
+      ],
+      "debrief": "The trace now includes a function output after each model request. The application runs the requested function and then adds the result with the same call ID. The model did not read the inventory directly. It received the results through the conversation.",
+      "solutionExplanation": "Execute the requested tool. This program already appends matching results and returns answers. Repairing request handling supplies the missing step between the model request and the conversation update.",
+      "navigationHint": "Find the last event, repair request handling, and run again."
     },
     {
       "kind": "teach",
       "id": "finish-the-loop",
-      "title": "An answer and a limit are different exits",
-      "body": "Your program now runs both lookups and sends their results back. The next model response can contain a final answer. Return that answer and stop. Calling the model again after an answer wastes calls. Keep a maximum call count as a separate limit for unfinished work. Reaching that limit means the loop stopped; it does not mean the task succeeded. Next, repair both the result handling and the final-answer branch in a new program."
+      "title": "Decide when the work is done",
+      "body": "A model response can request another action or contain an answer. Your application must handle those two cases differently. Once an answer arrives, continuing the same loop can spend calls without doing useful work.",
+      "sections": [
+        {
+          "title": "Return an answer",
+          "body": "Check for an answer before trying to execute a tool. Returning it exits the function and gives the result to the caller. A model producing an answer and your application returning it are separate events in the trace.",
+          "code": "if (response.kind === \"answer\") {\n  return response.stock;\n}\nconst result = await tools.execute(response);\nmessages.push(result);"
+        },
+        {
+          "title": "Set a limit for unfinished work",
+          "body": "A maximum call count bounds a loop that has not returned an answer. It is a fallback, not a success condition. If the limit is reached, the application reports that the task is unfinished. Do not treat a stopped process as evidence that the user received an answer."
+        },
+        {
+          "title": "Count the calls in this simulator",
+          "body": "The practice model requests one missing item on each call. After the final lookup, it needs another model call to produce the answer. Two requested items therefore need three calls. Three items need four. Tool execution and adding a message are separate operations, but neither is another model call. This count is specific to this simulation; real models may request multiple tools or need more steps.",
+          "code": "2 items: request, request, answer = 3 model calls\n3 items: request, request, request, answer = 4 model calls"
+        }
+      ]
+    },
+    {
+      "kind": "play",
+      "id": "return-the-answer",
+      "title": "The answer appeared. Did the user receive it?",
+      "goal": "This loop executes the lookups and returns matching results to the conversation. Run it before changing anything. Compare the first event containing an answer with the event that ends the run. Then repair the editable answer-handling block. Keep the four-call limit unchanged so you can see which change actually fixes the problem.",
+      "mode": "build",
+      "program": {
+        "dispatch": "execute",
+        "observation": "append",
+        "finish": "repeat",
+        "maxTurns": 4,
+        "onError": "stop",
+        "retries": 0
+      },
+      "editable": [
+        "finish"
+      ],
+      "cases": [
+        {
+          "id": "desk-kit",
+          "title": "Desk kit",
+          "items": [
+            "cable",
+            "dock"
+          ],
+          "inventory": {
+            "cable": 0,
+            "dock": 12
+          },
+          "expected": "complete"
+        }
+      ],
+      "pass": "success",
+      "prediction": {
+        "question": "With the current answer-handling block, how will this run end?",
+        "options": [
+          {
+            "id": "complete",
+            "label": "Return the requested stock counts and stop"
+          },
+          {
+            "id": "unhandled-tool",
+            "label": "Stop before executing a requested lookup"
+          },
+          {
+            "id": "turn-limit",
+            "label": "Reach the call limit without returning an answer"
+          }
+        ]
+      },
+      "hints": [
+        "Find the first model response containing both stock counts.",
+        "After that response, does the application return or call the model again?",
+        "Return the answer and stop instead of calling the model again."
+      ],
+      "debrief": "The repaired application returns the answer on model call 3 and leaves one call unused. The original already had enough calls to obtain an answer. Its problem was continuing after that answer arrived. A larger limit would have delayed the same failure.",
+      "solutionExplanation": "Return final answers. Keep the call limit as a separate fallback for unfinished tasks. This repair changes the branch after an answer; it does not alter the inventory or the model responses.",
+      "navigationHint": "Compare the answer event with the final stop, then repair the branch."
     },
     {
       "kind": "play",
       "id": "build-your-agent",
-      "title": "Build a loop that works on fresh cases",
-      "goal": "Repair this program so it checks every requested item, returns the stock counts from the tool results, and stops before its call limit. Run tests the same program on three inventories. Inspect each case. The goal is a reusable loop, so changing an answer for one inventory cannot solve the task.",
+      "title": "Repair an unfamiliar loop",
+      "goal": "A support team needs one inventory assistant for requests of different lengths. Diagnose this program, then repair it so the same loop returns every requested stock count and stops within eight model calls. Start by running the original and reading its trace. Run checks all three requests. Inspect any case that needs work; do not change the inventories or write answers for individual cases.",
       "mode": "challenge",
       "program": {
         "dispatch": "execute",
-        "observation": "discard",
-        "finish": "repeat",
-        "maxTurns": 5,
+        "observation": "wrong-id",
+        "finish": "return",
+        "maxTurns": 3,
         "onError": "stop",
         "retries": 0
       },
@@ -222,7 +402,7 @@
       "cases": [
         {
           "id": "repair-office",
-          "title": "Office inventory",
+          "title": "Two-item request",
           "items": [
             "mouse",
             "keyboard"
@@ -235,71 +415,91 @@
         },
         {
           "id": "repair-field",
-          "title": "Field inventory",
+          "title": "Three-item request",
           "items": [
             "battery",
-            "cable"
+            "cable",
+            "adapter"
           ],
           "inventory": {
             "battery": 6,
-            "cable": 0
+            "cable": 0,
+            "adapter": 4
           },
           "expected": "complete"
         },
         {
           "id": "repair-audio",
-          "title": "Audio inventory",
+          "title": "Reordered request",
           "items": [
+            "microphone",
             "stand",
-            "microphone"
+            "screen"
           ],
           "inventory": {
+            "microphone": 3,
             "stand": 0,
-            "microphone": 3
+            "screen": 2
           },
           "expected": "complete"
         }
       ],
       "pass": "success",
       "prediction": {
-        "question": "What will your current program do?",
+        "question": "What will your current program do on the first request?",
         "options": [
           {
             "id": "complete",
-            "label": "Return the stock counts and stop"
+            "label": "Return the requested stock counts and stop"
           },
           {
             "id": "unhandled-tool",
-            "label": "Stop with a tool request waiting"
+            "label": "Stop before executing a requested lookup"
           },
           {
             "id": "turn-limit",
-            "label": "Use up the model-call limit"
+            "label": "Reach the call limit without returning an answer"
           }
         ]
       },
       "hints": [
-        "Read the repeated events. Does the conversation gain a matching tool result, and what happens after an answer?",
-        "The loop needs one path for a tool request and a different path for a final answer. A call limit is only a fallback.",
-        "Execute the tool, append its result with its call ID, and return final answers. Allow enough calls for two lookups and an answer."
+        "For the first failed case, compare a model request with the result message that follows it. If that case passes, inspect the next failed case.",
+        "A usable result needs a matching request ID. A finished set of lookups still needs a model call to produce the answer.",
+        "Append results with their original call IDs. Allow at least four model calls for the three-item requests. Execute tools and return answers."
       ],
-      "navigationHint": "Repair the loop, predict its outcome, and test every case."
+      "debrief": "The same program handled two- and three-item requests, including items with zero stock. Matching IDs let the model use the lookup results. A sufficient budget left room for the final answer. These cases check your repair under this simulation; they do not test the behavior of a live model.",
+      "solutionExplanation": "Keep tool execution and the return-answer branch. Append each result with its original call ID, and allow four or more model calls. The first case needs three calls; the other cases need four. Changing only the call limit leaves the mismatched results unresolved. Changing only result handling leaves the longer requests unfinished.",
+      "navigationHint": "Diagnose the original run, then test one repair on every request."
     },
     {
       "kind": "recap",
       "id": "what-you-built",
-      "title": "You built the control loop",
-      "body": "Your program connected a model response to a tool, returned the observation with its call ID, and stopped when an answer arrived. The execution trace shows what happened at each step. Fresh inventories checked whether the same program could use different observations. This exercise uses a declared model simulation. A real model may choose different tools or produce invalid requests, so its behavior needs separate testing. Completing this practice is evidence about these loop mechanics, not a claim of general agent reliability."
+      "title": "Read the loop as application code",
+      "body": "You connected four responsibilities: ask the model, execute a requested tool, return the result to the conversation, and return a final answer. You also kept a limit for unfinished work. The next time an agent repeats itself, the trace gives you places to investigate.",
+      "sections": [
+        {
+          "title": "Use evidence to locate the fault",
+          "body": "A request without a function output points to execution. A function output absent from the conversation points to result handling. A result with an unrelated ID points to request matching. An answer followed by another model call points to the exit branch. A valid sequence that ends before an answer may need more calls."
+        },
+        {
+          "title": "Move toward a real model",
+          "body": "In free play, open \"See the matching code\" to download the loop. It expects a model adapter and a tool executor. An adapter translates between this small protocol and a model service. Before using a live service, implement and test that translation, validate tool requests, and decide which actions the application permits. The simulated model here does not establish that a real model will choose valid actions."
+        },
+        {
+          "title": "Try a controlled change",
+          "body": "Choose a working request, predict what one change will break, and run it. Explain the difference using the conversation and the stop event. Restore the working behavior before changing a second block. This makes it easier to tell which change caused the result."
+        }
+      ]
     },
     {
       "kind": "free-play",
       "id": "free-play",
-      "intro": "Choose another inventory and change the loop. Try discarding a result, using an unrelated call ID, or continuing after an answer. Compare the trace and conversation. Free play does not change your challenge result.",
+      "intro": "Experiment with the same loop on requests of different lengths. Change one operation, predict its effect, and compare the recorded messages. Free play does not change your challenge result.",
       "program": {
         "dispatch": "execute",
         "observation": "append",
         "finish": "return",
-        "maxTurns": 5,
+        "maxTurns": 4,
         "onError": "stop",
         "retries": 0
       },
@@ -318,28 +518,30 @@
           "expected": "complete"
         },
         {
-          "id": "travel-kit",
-          "title": "Travel kit",
+          "id": "field-kit",
+          "title": "Field kit",
           "items": [
-            "adapter",
-            "charger"
+            "battery",
+            "adapter"
           ],
           "inventory": {
-            "adapter": 7,
-            "charger": 0
+            "battery": 6,
+            "adapter": 0
           },
           "expected": "complete"
         },
         {
           "id": "studio-kit",
-          "title": "Studio kit",
+          "title": "Three-item studio kit",
           "items": [
             "screen",
-            "stand"
+            "stand",
+            "microphone"
           ],
           "inventory": {
             "screen": 0,
-            "stand": 4
+            "stand": 4,
+            "microphone": 2
           },
           "expected": "complete"
         }

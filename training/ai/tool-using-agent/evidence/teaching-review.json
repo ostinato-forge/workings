@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "reviewer": "Current assistant session",
+  "basis": "author-review",
+  "hashes": {
+    "brief": "5257ead1914686a00cb65017efbf94c9665b8ed03c274a4a5b7f3ce5d6fe45cc",
+    "sources": "861712efb2a9f8ea6afcf34dce4bd3d7fb112e7ad94344cee57077a0c971f9e6",
+    "plan": "8b90dfa197a25b589447c5229077a293adb2708ada9ebfef6bb1766b2e734edf",
+    "content": "aede8a36242fa30b2dd72e6b2f7aec748fb6dff169dd9ec989e32ef6482413b0"
+  },
+  "checks": {
+    "preparation": {
+      "verdict": "pass",
+      "evidence": [
+        {
+          "step": "meet-the-task",
+          "detail": "Introduces model, application, tool request, arguments, request ID, and conversation before the first run. Prerequisites remain simple loops and objects."
+        },
+        {
+          "step": "request-and-result",
+          "detail": "Shows an actual matching request/result pair, explains zero stock, and contrasts an unrelated ID before the independent task."
+        },
+        {
+          "step": "finish-the-loop",
+          "detail": "Separates producing an answer from returning it and derives two-item and three-item call counts before assessment."
+        }
+      ]
+    },
+    "worked-example": {
+      "verdict": "pass",
+      "evidence": [
+        {
+          "step": "follow-one-request",
+          "detail": "Uses a fixed successful program and actual engine events. Event 2 produces a function result without a message; event 3 appends it. Browser checks verify the code and message distinction. This example provides instruction, not independent assessment."
+        }
+      ]
+    },
+    "prediction": {
+      "verdict": "pass",
+      "evidence": [
+        {
+          "step": "missing-result",
+          "detail": "Identifies that one operation was removed without stating its consequence. Learners inspect the changed program before choosing an outcome. The missing-feedback explanation appears after the run."
+        },
+        {
+          "step": "return-the-answer",
+          "detail": "Describes existing lookup and feedback behavior but withholds the answer-branch result until the learner runs it. Guided repair follows the observed failure."
+        }
+      ]
+    },
+    "feedback": {
+      "verdict": "pass",
+      "evidence": [
+        {
+          "step": "missing-result",
+          "detail": "Connects a real tool output and unchanged message count to repeated requests. Explains why more calls do not repair missing information."
+        },
+        {
+          "step": "build-your-agent",
+          "detail": "Feedback uses recorded events to distinguish mismatched IDs from exhausted calls. A partial repair passes the short request and fails the longer request, with different evidence for each case. Hints and the full solution remain separate."
+        }
+      ]
+    },
+    "transfer": {
+      "verdict": "pass",
+      "evidence": [
+        {
+          "step": "build-your-agent",
+          "detail": "The initial defect has present but unmatched results, unlike missing results in guided practice. Requests have two or three items, so fixing message handling alone leaves the longer request unfinished. The task states outcomes and constraints without naming defective controls. This is a bounded transfer task, not evidence of general agent-building mastery."
+        }
+      ]
+    },
+    "source-support": {
+      "verdict": "pass",
+      "evidence": [
+        {
+          "step": "meet-the-task",
+          "detail": "The reviewed tool-results source supports application execution of client tools and returning results. The simple protocol is presented as a practice format."
+        },
+        {
+          "step": "finish-the-loop",
+          "detail": "The reviewed agent-loop source supports feedback loops and iteration limits. One-request-per-call policy and exact call counts are attributed to the local simulation and verified against the engine."
+        },
+        {
+          "step": "what-you-built",
+          "detail": "The recap explains the need for a separately implemented and tested live-model adapter. No claim is made that simulated success establishes live-model reliability."
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "This is author judgment in the same session that drafted the content, not independent human review.",
+    "Duration and learning effectiveness require a real learner trial.",
+    "The retry lesson has not had this teaching revision."
+  ]
+}

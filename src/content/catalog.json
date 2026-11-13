@@ -2,7 +2,7 @@
   {
     "id": "tool-using-agent",
     "title": "Build an agent that can use a tool",
-    "description": "Connect a tool, return its results, and stop an agent when its task is done."
+    "description": "Follow a working agent loop, diagnose missing tool feedback, and repair a new program."
   },
   {
     "id": "retry-tools",

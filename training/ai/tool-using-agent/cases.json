@@ -1,5 +1,5 @@
 {
-  "a-request-is-not-an-action": [
+  "follow-one-request": [
     {
       "id": "desk-kit",
       "title": "Desk kit",
@@ -14,7 +14,7 @@
       "expected": "complete"
     }
   ],
-  "execute-the-tool": [
+  "missing-result": [
     {
       "id": "desk-kit",
       "title": "Desk kit",
@@ -44,10 +44,40 @@
       "expected": "complete"
     }
   ],
+  "execute-the-tool": [
+    {
+      "id": "field-kit",
+      "title": "Field kit",
+      "items": [
+        "battery",
+        "adapter"
+      ],
+      "inventory": {
+        "battery": 6,
+        "adapter": 0
+      },
+      "expected": "complete"
+    }
+  ],
+  "return-the-answer": [
+    {
+      "id": "desk-kit",
+      "title": "Desk kit",
+      "items": [
+        "cable",
+        "dock"
+      ],
+      "inventory": {
+        "cable": 0,
+        "dock": 12
+      },
+      "expected": "complete"
+    }
+  ],
   "build-your-agent": [
     {
       "id": "repair-office",
-      "title": "Office inventory",
+      "title": "Two-item request",
       "items": [
         "mouse",
         "keyboard"
@@ -60,27 +90,31 @@
     },
     {
       "id": "repair-field",
-      "title": "Field inventory",
+      "title": "Three-item request",
       "items": [
         "battery",
-        "cable"
+        "cable",
+        "adapter"
       ],
       "inventory": {
         "battery": 6,
-        "cable": 0
+        "cable": 0,
+        "adapter": 4
       },
       "expected": "complete"
     },
     {
       "id": "repair-audio",
-      "title": "Audio inventory",
+      "title": "Reordered request",
       "items": [
+        "microphone",
         "stand",
-        "microphone"
+        "screen"
       ],
       "inventory": {
+        "microphone": 3,
         "stand": 0,
-        "microphone": 3
+        "screen": 2
       },
       "expected": "complete"
     }
@@ -100,28 +134,30 @@
       "expected": "complete"
     },
     {
-      "id": "travel-kit",
-      "title": "Travel kit",
+      "id": "field-kit",
+      "title": "Field kit",
       "items": [
-        "adapter",
-        "charger"
+        "battery",
+        "adapter"
       ],
       "inventory": {
-        "adapter": 7,
-        "charger": 0
+        "battery": 6,
+        "adapter": 0
       },
       "expected": "complete"
     },
     {
       "id": "studio-kit",
-      "title": "Studio kit",
+      "title": "Three-item studio kit",
       "items": [
         "screen",
-        "stand"
+        "stand",
+        "microphone"
       ],
       "inventory": {
         "screen": 0,
-        "stand": 4
+        "stand": 4,
+        "microphone": 2
       },
       "expected": "complete"
     }

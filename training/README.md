@@ -1,7 +1,8 @@
 # Author a Workings lesson
 
-Write a learning brief, generate a draft, validate its exercises, preview the
-learner experience, then accept it into the local course catalog.
+Write a learning brief, design and review the teaching sequence, then generate a
+draft. Validate its exercises, review the actual teaching, and preview the learner
+experience before accepting it into the local course catalog.
 
 The first packages teach tool use and bounded retries. They share the same
 agent-loop engine and player. The model is a declared simulation; the loop,
@@ -10,8 +11,8 @@ inventory lookup, message handling, and checks execute locally.
 ## Input
 
 Each lesson directory contains TRAINING.md, a reviewed source bundle, and a draft
-named `candidate.json`. The brief defines the final task before supporting
-practice and explanations. Its YAML front matter records identity, audience,
+named `candidate.json`. New drafts also need a reviewed `teaching-plan.json`.
+The brief defines the final task before supporting practice and explanations. Its YAML front matter records identity, audience,
 prerequisites, engine, and objective. Evidence records are stored separately.
 
 The package contract is in `src/training/agent-package.ts`. Version 1 supports
@@ -20,8 +21,17 @@ agent-loop engine. Packages contain data, not executable lesson code.
 
 ## Local authoring
 
-An agent in the current session reads the brief and source bundle and writes the
-draft. Import records those inputs and runs the checks:
+An agent in the current session reads the brief and source bundle, then follows
+[DESIGN.md](DESIGN.md). It drafts a teaching plan and reviews concept order,
+the worked example, likely mistakes, and the independent task before writing
+the playable content. Record that review with a specific note:
+
+```bash
+npm run training -- review-plan training/ai/tool-using-agent --reviewed --note "Describe the sequence reviewed and any design changes."
+```
+
+Then write the package. Import records the reviewed inputs, checks plan coverage,
+and runs the exercises:
 
 ```bash
 npm run training -- import training/ai/tool-using-agent/candidate.json --brief training/ai/tool-using-agent
@@ -39,8 +49,8 @@ standalone provider workflow ran.
 
 The optional adapter uses the installed `claude` CLI with tools, hooks, skills,
 and MCP servers disabled. Configure that CLI before use. A run sends the brief,
-source bundle, package contract, engine, and repair findings to the configured
-service. Choose the spending limit before starting a paid run.
+reviewed teaching plan, authoring rules, source bundle, package contract, engine,
+and repair findings to the configured service. Choose the spending limit before starting a paid run.
 
 ```bash
 npm run training -- generate training/ai/tool-using-agent --budget-usd 2 --max-tokens 150000 --max-calls 3
@@ -54,8 +64,8 @@ threshold. Each call also has a four-minute timeout.
 
 Unknown usage stops automatic continuation. Inspect an interrupted call before
 another paid run. Do not delete its record to hide spend. Identical inputs reuse
-a validated draft. Changed briefs, sources, engine, contract, driver, or budgets
-use a new run.
+a validated draft. Changed briefs, sources, teaching plans, authoring rules, engine, contract, driver,
+revision, or budgets use a new run.
 
 The external adapter has not run against the service in this build. The accepted
 drafts came from the current authoring session. Provenance records distinguish
@@ -65,11 +75,16 @@ the two paths.
 
 ```bash
 npm run training -- validate training/ai/tool-using-agent/candidate.json
-npm run training -- accept training/ai/tool-using-agent/candidate.json --reviewed
+npm run training -- accept training/ai/tool-using-agent/candidate.json --brief training/ai/tool-using-agent --reviewed
 ```
 
 Review source support, instructions, hints, solutions, and the browser journey
-before acceptance. The command copies the package to `src/content/lessons`,
+before acceptance. Write the six-criterion `evidence/teaching-review.json` described
+in [DESIGN.md](DESIGN.md). It identifies the exact draft, plan, brief, and sources
+and cites teaching evidence by step. Missing, stale, or unresolved reviews block
+acceptance. Plan coverage checks cannot establish the quality of explanations.
+
+The command copies the package to `src/content/lessons`,
 updates the generated catalog index, and writes a review record. It does not
 push, publish, or deploy. Changed accepted content must increase its revision.
 
@@ -95,3 +110,7 @@ The retry lesson demonstrates reuse of the same engine and player. Live models
 need separate integration tests. The downloadable TypeScript loop defines a small
 model-and-tool protocol; a real API adapter must translate and validate provider
 responses before using that protocol.
+
+The tool lesson's second revision follows this teaching review workflow. The
+existing retry lesson predates it. It remains playable, but its next content
+revision must include a teaching plan and review before acceptance.
