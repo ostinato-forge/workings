@@ -183,26 +183,40 @@ function isRunResult(value: unknown): value is RunResult<unknown> {
     Object.hasOwn(record, "initial") && Object.hasOwn(record, "final") && Array.isArray(record.steps);
 }
 
-// The page side. Each call gets its own request id, and a call that gets no
-// answer in time stops the worker. A stopped worker loses every request it
-// held, so every call still waiting on it ends with the same problem, and
-// the next call starts a fresh worker.
+// The page side. A worker runs one call at a time, so the runner keeps the
+// calls in a queue and posts the next one only when the one before it
+// settles. Each call's timer starts when it is posted, so a slow call ahead
+// of it cannot use up its time. A call that gets no answer in time stops the
+// worker and fails alone. The calls still waiting then run on a fresh worker.
 export function createRunner({ spawn, timeoutMs }: { spawn: () => RunWorker; timeoutMs: number }): Runner {
+  type Waiting = { subjectId: string; input: SubjectRunInput<unknown>; resolve: (result: RunResult<unknown>) => void };
   let worker: RunWorker | null = null;
   let nextId = 1;
-  const pending = new Map<number, { resolve: (result: RunResult<unknown>) => void; timer: ReturnType<typeof setTimeout> }>();
+  const queue: Waiting[] = [];
+  let running: { requestId: number; resolve: (result: RunResult<unknown>) => void; timer: ReturnType<typeof setTimeout> } | null = null;
 
-  const settle = (requestId: number, result: RunResult<unknown>) => {
-    const entry = pending.get(requestId);
-    if (entry === undefined) return;
-    pending.delete(requestId);
-    clearTimeout(entry.timer);
-    entry.resolve(result);
+  const current = (): RunWorker => {
+    if (worker !== null) return worker;
+    const created = spawn();
+    // Answers from a worker that was stopped are ignored, even when they
+    // carry the id of the call that is running.
+    created.onmessage = (event) => { if (worker === created) receive(event.data); };
+    worker = created;
+    return created;
+  };
+
+  const settle = (result: RunResult<unknown>) => {
+    const call = running;
+    if (call === null) return;
+    running = null;
+    clearTimeout(call.timer);
+    call.resolve(result);
+    postNext();
   };
 
   const receive = (data: unknown) => {
-    if (!isPlainRecord(data) || typeof data.requestId !== "number" || !pending.has(data.requestId)) return;
-    settle(data.requestId, isRunResult(data.result) ? data.result : failed(INTERNAL_ERROR));
+    if (running === null || !isPlainRecord(data) || data.requestId !== running.requestId) return;
+    settle(isRunResult(data.result) ? data.result : failed(INTERNAL_ERROR));
   };
 
   const stop = () => {
@@ -213,30 +227,28 @@ export function createRunner({ spawn, timeoutMs }: { spawn: () => RunWorker; tim
     } catch {
       // The worker is dropped either way.
     }
-    for (const requestId of [...pending.keys()]) settle(requestId, failed(TIMEOUT_PROBLEM));
+    settle(failed(TIMEOUT_PROBLEM));
   };
 
-  const current = (): RunWorker => {
-    if (worker !== null) return worker;
-    const created = spawn();
-    // Answers from a worker that was stopped are ignored, even when they
-    // carry a request id that is still waiting.
-    created.onmessage = (event) => { if (worker === created) receive(event.data); };
-    worker = created;
-    return created;
-  };
+  function postNext(): void {
+    if (running !== null) return;
+    const call = queue.shift();
+    if (call === undefined) return;
+    const requestId = nextId;
+    nextId += 1;
+    running = { requestId, resolve: call.resolve, timer: setTimeout(stop, timeoutMs) };
+    try {
+      current().postMessage({ requestId, subjectId: call.subjectId, input: call.input });
+    } catch {
+      settle(failed(INTERNAL_ERROR));
+    }
+  }
 
   return {
     run(subjectId, input) {
       return new Promise((resolve) => {
-        const requestId = nextId;
-        nextId += 1;
-        pending.set(requestId, { resolve, timer: setTimeout(stop, timeoutMs) });
-        try {
-          current().postMessage({ requestId, subjectId, input });
-        } catch {
-          settle(requestId, failed(INTERNAL_ERROR));
-        }
+        queue.push({ subjectId, input, resolve });
+        postNext();
       });
     },
   };

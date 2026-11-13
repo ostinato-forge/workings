@@ -306,29 +306,55 @@ describe("createRunner", () => {
     expect(result.ok && result.record.final).toEqual({ total: 5 });
   });
 
-  test("matches overlapping calls to their own answers", async () => {
+  test("posts a call only when the call before it settles", async () => {
     const worker = fakeWorker("hold");
     const runner = createRunner({ spawn: () => worker, timeoutMs: 1_000 });
     const first = runner.run("sum", input("1"));
     const second = runner.run("sum", input("2"));
-    expect(worker.requests.map((request) => request.requestId)).toHaveLength(2);
-    worker.answer(responseFor(worker.requests[1]));
+    expect(worker.requests).toHaveLength(1);
     worker.answer(responseFor(worker.requests[0]));
-    const [one, two] = await Promise.all([first, second]);
+    const one = await first;
     expect(one.ok && one.record.final).toEqual({ total: 1 });
+    expect(worker.requests).toHaveLength(2);
+    worker.answer(responseFor(worker.requests[1]));
+    const two = await second;
     expect(two.ok && two.record.final).toEqual({ total: 2 });
   });
 
-  test("stops every call waiting on a worker that is stopped", async () => {
+  test("starts a call's timer when the call is posted, not when it is made", async () => {
     vi.useFakeTimers();
     const worker = fakeWorker("hold");
     const runner = createRunner({ spawn: () => worker, timeoutMs: 1_000 });
+    // Call A runs for 800 milliseconds. Call B is made at 100 and needs 300.
+    const a = runner.run("sum", input("1"));
+    vi.advanceTimersByTime(100);
+    const b = runner.run("sum", input("2"));
+    vi.advanceTimersByTime(700);
+    worker.answer(responseFor(worker.requests[0]));
+    expect((await a).ok).toBe(true);
+    vi.advanceTimersByTime(300);
+    worker.answer(responseFor(worker.requests[1]));
+    const result = await b;
+    expect(result.ok && result.record.final).toEqual({ total: 2 });
+  });
+
+  test("a timeout fails only the running call, and waiting calls run on a fresh worker", async () => {
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    const runner = createRunner({
+      spawn: () => { const worker = fakeWorker(workers.length === 0 ? "hold" : "now"); workers.push(worker); return worker; },
+      timeoutMs: 1_000,
+    });
     const first = runner.run("sum", input("1"));
     vi.advanceTimersByTime(500);
     const second = runner.run("sum", input("2"));
     vi.advanceTimersByTime(500);
     expect(await first).toEqual({ ok: false, problem: TIMEOUT_PROBLEM });
-    expect(await second).toEqual({ ok: false, problem: TIMEOUT_PROBLEM });
+    expect(workers[0]?.terminated).toBe(true);
+    expect(workers[0]?.requests).toHaveLength(1);
+    const result = await second;
+    expect(result.ok && result.record.final).toEqual({ total: 2 });
+    expect(workers).toHaveLength(2);
   });
 
   test("ignores answers with an unknown request id or no id", async () => {
