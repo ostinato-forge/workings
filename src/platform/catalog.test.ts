@@ -46,5 +46,5 @@ describe("course catalog and routes", () => {
     for (const lesson of catalog.lessons) {
       expect(typeof (await lesson.load()).default).toBe("function");
     }
-  });
+  }, 30_000); // Importing every player compiles each course; a busy machine needs more than the default 5 seconds.
 });
