@@ -83,9 +83,22 @@ The original full Ansible course remains in its own repository.
 ## Verify
 
 ```bash
+npm run gate
+```
+
+The gate runs the type check and unit tests, both browser sweeps, and a check of
+the production build. CI runs the same command on every push. To run one part:
+
+```bash
 npm test
 npm run sweep
+npm run sweep:agents
+npm run check:dist
 ```
+
+The production page declares a Content-Security-Policy that allows only its own
+scripts, styles, fonts, and connections. The build check fails if the policy is
+missing or if development-only code reaches the build.
 
 The sweep builds the production app and runs Chromium through both courses.
 It checks course navigation, saved progress, the original AI links, invalid
