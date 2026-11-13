@@ -73,6 +73,21 @@ describe("counter subject", () => {
     });
   });
 
+  test("applies a fault from the options as an event with no causes", () => {
+    const result = runSubject(counterSubject, {
+      sources: { counters: "add 1 to a" }, world: { counters: [{ name: "a", value: 4 }] }, seed: 0, options: { fault: "reset", faultTarget: "a" },
+    });
+    if (!result.ok) throw new Error(result.problem.what);
+    expect(result.record.steps.map((step) => [step.event.kind, step.event.status])).toEqual([["fault", "changed"], ["add", "changed"]]);
+    expect(result.record.steps[0]?.event).toMatchObject({ causes: [], targets: [{ entityId: "a", factId: "value" }], data: { fault: "reset" } });
+    expect(result.record.final).toEqual({ counters: [{ name: "a", value: 1 }] });
+  });
+
+  test("names a fault it does not have", () => {
+    const result = runSubject(counterSubject, { sources: { counters: "" }, world: { counters: [] }, seed: 0, options: { fault: "constructor", faultTarget: "a" } });
+    expect(result).toEqual({ ok: false, problem: { what: 'There is no fault named "constructor".', fix: "Choose one of the faults the lesson offers." } });
+  });
+
   test("supplies at least two conformance cases", () => {
     expect(counterCases.length).toBeGreaterThanOrEqual(2);
     for (const item of counterCases) {

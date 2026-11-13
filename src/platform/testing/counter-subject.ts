@@ -3,10 +3,10 @@
  * of commands on named counters. Nothing outside tests imports it.
  */
 
-import { snapshot, type EngineResult, type StageRunRecord } from "../run-record";
+import { snapshot, type EngineProblem, type EngineResult, type StageRunRecord } from "../run-record";
 import { STAGE_STATUSES, type StageEvent } from "../stage-event";
-import { defineSubject, type Measure, type Subject, type SubjectRunInput, type WorldView } from "../subject";
-import { splitLines } from "../text";
+import { defineSubject, lookup, type Fault, type Measure, type Subject, type SubjectRunInput, type WorldView } from "../subject";
+import { quotedName, splitLines } from "../text";
 
 // Counters are a list, not an object keyed by name, because the names come
 // from learner text and may be "__proto__" or "constructor".
@@ -72,11 +72,51 @@ function apply(world: CounterWorld, command: Command, lineNumber: number, line: 
   };
 }
 
+const COUNTER_FAULTS = new Map<string, Fault<CounterWorld>>([
+  ["reset", { label: "Reset the counter to zero", apply: (world, entityId) => valueOf(world, entityId) === undefined ? world : withValue(world, entityId, 0) }],
+]);
+
+// The options name a fault to apply before the learner's lines run. It
+// becomes an event with no causes, since the learner did not write it.
+type FaultOutcome = { ok: true; applied: { world: CounterWorld; event: StageEvent } | null } | { ok: false; problem: EngineProblem };
+
+function faultStep(world: CounterWorld, options: SubjectRunInput<CounterWorld>["options"]): FaultOutcome {
+  const { fault, faultTarget } = options;
+  if (fault === undefined) return { ok: true, applied: null };
+  const chosen = lookup(COUNTER_FAULTS, fault);
+  if (chosen === undefined || typeof fault !== "string") {
+    return { ok: false, problem: { what: `There is no fault named ${quotedName(fault)}.`, fix: "Choose one of the faults the lesson offers." } };
+  }
+  const target = typeof faultTarget === "string" ? faultTarget : "";
+  const before = valueOf(world, target);
+  const next = chosen.apply(world, target);
+  return {
+    ok: true,
+    applied: {
+      world: next,
+      event: {
+        kind: "fault",
+        status: before === valueOf(next, target) ? "unchanged" : "changed",
+        causes: [],
+        targets: before === undefined ? [] : [{ entityId: target, factId: "value" }],
+        summary: `${chosen.label}: ${target}.`,
+        data: { fault },
+      },
+    },
+  };
+}
+
 export function counterRun({ sources, world, seed, options }: SubjectRunInput<CounterWorld>): EngineResult<StageRunRecord<CounterWorld>> {
   const text = Object.hasOwn(sources, "counters") ? sources.counters ?? "" : "";
   const initial = snapshot(world);
   const steps: StageRunRecord<CounterWorld>["steps"] = [];
   let state = snapshot(world);
+  const fault = faultStep(state, options);
+  if (!fault.ok) return { ok: false, problem: fault.problem };
+  if (fault.applied !== null) {
+    steps.push({ index: 0, event: fault.applied.event, before: snapshot(state), after: snapshot(fault.applied.world) });
+    state = fault.applied.world;
+  }
   for (const [i, raw] of splitLines(text).entries()) {
     const line = raw.trim();
     if (line === "") continue;
@@ -138,9 +178,7 @@ export function counterSubjectWith(change: Partial<Subject<CounterWorld>> = {}):
         compute: (runs, args) => runs.at(-1)?.steps.filter((step) => step.event.status === args.status).length ?? 0,
       }],
     ]),
-    faults: new Map([
-      ["reset", { label: "Reset the counter to zero", apply: (world: CounterWorld, entityId: string) => valueOf(world, entityId) === undefined ? world : withValue(world, entityId, 0) }],
-    ]),
+    faults: COUNTER_FAULTS,
     results: "list",
     validateStep: (step) => (typeof step === "object" && step !== null && !Array.isArray(step) ? [] : ["A counter step must be an object."]),
     ...change,
@@ -167,6 +205,14 @@ export const counterCases: CounterCase[] = [
     seed: 7,
     options: { verbose: true },
     view: "parity",
+  },
+  {
+    name: "reset fault",
+    sources: { counters: "add 1 to a\ncheck a" },
+    world: { counters: [{ name: "a", value: 4 }] },
+    seed: 3,
+    options: { fault: "reset", faultTarget: "a" },
+    view: "default",
   },
 ];
 

@@ -8,6 +8,7 @@ import {
   subjectConformanceProblems,
 } from "./conformance";
 import { checkSourceLimits } from "./limits";
+import { runSubject } from "./run-subject";
 import type { StageEvent } from "./stage-event";
 import { BROKEN_SUBJECTS, withEvents } from "./testing/broken-subjects";
 import { counterCases, counterHostileCases, counterSubject, counterSubjectWith } from "./testing/counter-subject";
@@ -72,9 +73,31 @@ describe("conformance suite", () => {
     expect(problems[0]?.message).toMatch(message);
   });
 
-  test("accepts an event with no causes when it is a fault", () => {
+  test("reports events that call themselves faults to skip the causes rule", () => {
     const subject = withEvents((event) => ({ ...event, kind: "fault", causes: [] }));
+    const problems = conformanceProblemList(subject, counterCases);
+    expect(problems.length).toBeGreaterThan(0);
+    expect([...new Set(problems.map((problem) => problem.rule))]).toEqual(["causes-exist"]);
+    expect(problems[0]?.message).toMatch(/does not name a fault/);
+  });
+
+  test.each(["missing", "__proto__"])("reports a fault event whose data names the fault %s", (fault) => {
+    const subject = withEvents((event) => ({ ...event, kind: "fault", causes: [], data: { fault } }));
+    const problems = conformanceProblemList(subject, counterCases);
+    expect([...new Set(problems.map((problem) => problem.rule))]).toEqual(["causes-exist"]);
+  });
+
+  test("accepts an event with no causes when it names one of the subject's faults", () => {
+    const subject = withEvents((event) => ({ ...event, kind: "fault", causes: [], data: { fault: "reset" } }));
     expect(subjectConformanceProblems(subject, counterCases)).toEqual([]);
+  });
+
+  test("the counter's cases include a fault event", () => {
+    const events = counterCases.flatMap((item) => {
+      const result = runSubject(counterSubject, item);
+      return result.ok ? result.record.steps.map((step) => step.event) : [];
+    });
+    expect(events.filter((event) => event.kind === "fault")).toEqual([expect.objectContaining({ causes: [], data: { fault: "reset" } })]);
   });
 
   test("reports a describe that throws a value that cannot become text", () => {

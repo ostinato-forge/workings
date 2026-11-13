@@ -11,7 +11,7 @@ import { PLATFORM_MEASURES } from "./measures";
 import type { StageRunRecord } from "./run-record";
 import { runSubjectWithReport, type RunReport } from "./run-subject";
 import type { StageEvent } from "./stage-event";
-import { checkArgs, isMeasureValue, type ArgContext, type ArgSpec, type MeasureArgs, type Subject, type WorldView } from "./subject";
+import { checkArgs, isMeasureValue, lookup, type ArgContext, type ArgSpec, type MeasureArgs, type Subject, type WorldView } from "./subject";
 import { splitLines, thrownMessage } from "./text";
 
 export const CONFORMANCE_RULES = [
@@ -201,7 +201,14 @@ class Checker<World> {
 
   private causeProblems(event: StageEvent, record: StageRunRecord<World>): string[] {
     if (event.causes.length === 0) {
-      return event.kind === "fault" ? [] : [`The event has no causes, but only a fault event may have none. Its kind is "${event.kind}".`];
+      // A subject picks its own event kinds, so the kind alone cannot excuse
+      // an event from pointing at the learner's text. The fault must be one
+      // the subject declares.
+      if (event.kind !== "fault") return [`The event has no causes, but only a fault event may have none. Its kind is "${event.kind}".`];
+      const fault = event.data?.fault;
+      return lookup(this.subject.faults, fault) === undefined
+        ? ["The fault event has no causes, but its data.fault does not name a fault the subject declares."]
+        : [];
     }
     return event.causes.flatMap((cause, i) => {
       const { ref } = cause;
