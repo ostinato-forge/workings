@@ -33,6 +33,26 @@ describe("production build check", () => {
     expect(distProblems(dist({ "index.html": escaped }))).toEqual([]);
   });
 
+  test("reports a policy that comes after a script, because it would not cover that script", () => {
+    const late = page.replace("<head>", "<head><script>window.early = 1</script>");
+    expect(distProblems(dist({ "index.html": late }))[0]).toMatch(/Content-Security-Policy/);
+  });
+
+  test("reports a policy that is only inside a comment", () => {
+    const commented = page.replace("<head>", "<head><!--").replace("</head>", "--></head>");
+    expect(distProblems(dist({ "index.html": commented }))[0]).toMatch(/Content-Security-Policy/);
+  });
+
+  test("does not decode a character reference twice", () => {
+    const twice = page.replaceAll("'", "&amp;#39;");
+    expect(distProblems(dist({ "index.html": twice }))[0]).toMatch(/Content-Security-Policy/);
+  });
+
+  test("reports the development draft endpoint in a file of any type", () => {
+    const problems = distProblems(dist({ "index.html": page, "worker.mjs": "x", "notes.txt": "see /__workings_draft" }));
+    expect(problems).toEqual(["notes.txt contains the development-only draft endpoint."]);
+  });
+
   test("reports a page without the policy", () => {
     const problems = distProblems(dist({ "index.html": "<!doctype html><html><head></head></html>" }));
     expect(problems).toHaveLength(1);
@@ -66,6 +86,8 @@ describe("content security policy", () => {
     expect(rules["connect-src"]).toBe("'self'");
     expect(rules["object-src"]).toBe("'none'");
     expect(rules["base-uri"]).toBe("'none'");
+    expect(rules["img-src"]).toBeUndefined();
+    expect(CONTENT_SECURITY_POLICY).not.toMatch(/data:|blob:/);
     expect(CONTENT_SECURITY_POLICY).not.toMatch(/unsafe-inline|unsafe-eval|\*/);
   });
 });

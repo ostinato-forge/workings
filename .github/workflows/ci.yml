@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Long-lived branches run on push. Every other branch runs once, through its pull request.
   push:
+    branches: [main, "feat/**"]
   pull_request:
 
 permissions:
@@ -9,7 +11,8 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push replaces an older pull request run. Every push to a long-lived branch gets a result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   gate:
@@ -21,7 +24,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22.13"
+          node-version: "22.22.2"
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium

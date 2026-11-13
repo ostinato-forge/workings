@@ -13,9 +13,10 @@ function filesUnder(dir: string): string[] {
   });
 }
 
-// The build writes quotes inside the attribute as character references.
+// A policy in a meta tag covers only what the browser reads after it, so the tag
+// must be the first thing in the head. The build writes quotes as character references.
 function declaredPolicy(html: string): string | null {
-  const content = /<meta http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(html)?.[1];
+  const content = /<head>\s*<meta http-equiv="Content-Security-Policy" content="([^"]*)">/.exec(html)?.[1];
   if (content === undefined) return null;
   return content.replaceAll("&#39;", "'").replaceAll("&quot;", '"').replaceAll("&amp;", "&");
 }
@@ -29,8 +30,7 @@ export function distProblems(dir: string): string[] {
     problems.push("index.html does not declare the expected Content-Security-Policy.");
   }
   for (const file of filesUnder(dir)) {
-    if (!/\.(html|js|css|json|map)$/.test(file)) continue;
-    if (readFileSync(file, "utf8").includes(DEVELOPMENT_ONLY)) {
+    if (readFileSync(file).includes(DEVELOPMENT_ONLY)) {
       problems.push(`${relative(dir, file)} contains the development-only draft endpoint.`);
     }
   }
