@@ -6,7 +6,6 @@
  * hostile input cannot crash or hang a lesson.
  */
 
-import { describe, expect, test } from "vitest";
 import { PLATFORM_MEASURES } from "./measures";
 import type { StageRunRecord } from "./run-record";
 import { runSubjectWithReport, type RunReport } from "./run-subject";
@@ -362,6 +361,18 @@ export function formatConformanceProblem(problem: ConformanceProblem): string {
   return `${problem.rule}: ${where === "" ? "" : `${where}: `}${problem.message}`;
 }
 
+// Checks one rule at a time, so a test runner can name each rule. The runs
+// are made once and shared between the rules.
+export type ConformanceChecker = { check(rule: ConformanceRule): ConformanceProblem[] };
+
+export function createConformanceChecker<World>(
+  subject: Subject<World>,
+  cases: readonly ConformanceCase<World>[],
+  hostileCases: readonly HostileCase[] = [],
+): ConformanceChecker {
+  return new Checker(subject, cases, hostileCases);
+}
+
 export function conformanceProblemList<World>(
   subject: Subject<World>,
   cases: readonly ConformanceCase<World>[],
@@ -377,23 +388,4 @@ export function subjectConformanceProblems<World>(
   hostileCases: readonly HostileCase[] = [],
 ): string[] {
   return conformanceProblemList(subject, cases, hostileCases).map(formatConformanceProblem);
-}
-
-// One named test per rule, so a failing subject shows which rule it breaks.
-export function describeSubjectConformance<World>(
-  name: string,
-  subject: Subject<World>,
-  cases: readonly ConformanceCase<World>[],
-  hostileCases: readonly HostileCase[] = [],
-): void {
-  describe(`${name} conformance`, () => {
-    const checker = new Checker(subject, cases, hostileCases);
-    for (const rule of CONFORMANCE_RULES) {
-      // The hostile texts include a megabyte of text, which a busy machine
-      // needs more than the default five seconds to run through every artifact.
-      test(rule, () => {
-        expect(checker.check(rule).map(formatConformanceProblem)).toEqual([]);
-      }, 60_000);
-    }
-  });
 }

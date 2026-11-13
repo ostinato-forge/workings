@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 import {
   CONFORMANCE_RULES,
   conformanceProblemList,
-  describeSubjectConformance,
   HOSTILE_TEXTS,
   HOSTILE_TIME_LIMIT_MS,
   sampleArgs,
@@ -12,6 +11,7 @@ import { checkSourceLimits } from "./limits";
 import { runSubject } from "./run-subject";
 import type { StageEvent } from "./stage-event";
 import { BROKEN_SUBJECTS, withEvents } from "./testing/broken-subjects";
+import { describeSubjectConformance } from "./testing/describe-conformance";
 import { counterCases, counterHostileCases, counterRun, counterSubject, counterSubjectWith } from "./testing/counter-subject";
 
 describe("conformance suite", () => {
