@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
-import { desiredStateLesson } from "../courses/ansible/desired-state";
-import { samplingDialsLesson } from "../lessons/sampling-dials";
-import { lintCopy } from "../lessons/lint";
+import { desiredStateLesson } from "./courses/ansible/desired-state";
+import { samplingDialsLesson } from "./lessons/sampling-dials";
+import { lintCopy } from "./lessons/lint";
 import { catalog } from "./catalog";
 
 test.each([samplingDialsLesson, desiredStateLesson])("$id uses the shared teaching flow", (lesson) => {

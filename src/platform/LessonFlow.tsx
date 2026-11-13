@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { DeckProps, LessonNavigation } from "../shell/cabinet/ControlDeck";
+import type { DeckProps, LessonNavigation } from "./controls";
 import type { FreePlayBeatBase, Lesson, PlayBeatBase } from "./lesson";
 
 export type LessonPlayerProps = {

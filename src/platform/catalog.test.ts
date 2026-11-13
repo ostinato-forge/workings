@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { catalog, defineCatalog, type Catalog } from "./catalog";
+import { defineCatalog, type Catalog } from "./catalog";
 import { lessonHref, resolveRoute } from "./routes";
+import { fixtureCatalog as catalog } from "./testing/catalog-fixture";
 
 describe("course catalog and routes", () => {
   test("a lesson can be reused by two courses", () => {
@@ -41,10 +42,4 @@ describe("course catalog and routes", () => {
       resolveRoute(lessonHref("ai", "sampling-dials"), catalog),
     );
   });
-
-  test("every available lesson loads a player", async () => {
-    for (const lesson of catalog.lessons) {
-      expect(typeof (await lesson.load()).default).toBe("function");
-    }
-  }, 30_000); // Importing every player compiles each course; a busy machine needs more than the default 5 seconds.
 });

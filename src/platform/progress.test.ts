@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
-import { catalog, defineCatalog } from "./catalog";
+import { defineCatalog } from "./catalog";
 import { completeLesson, decodeProgress, PROGRESS_KEY, readProgress, saveProgress } from "./progress";
+import { fixtureCatalog as catalog } from "./testing/catalog-fixture";
 
 function storage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));

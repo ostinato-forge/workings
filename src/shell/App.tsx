@@ -1,10 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { catalog } from "../platform/catalog";
+import { catalog } from "../catalog";
+import type { DeckProps, LessonNavigation } from "../platform/controls";
 import { completeLesson, readProgress, saveProgress, type Progress } from "../platform/progress";
 import { courseHref, lessonHref, resolveRoute } from "../platform/routes";
 import { Cabinet } from "./cabinet/Cabinet";
 import { CabinetProvider, useCabinet } from "./cabinet/CabinetState";
-import { ControlDeck, type DeckProps, type LessonNavigation } from "./cabinet/ControlDeck";
+import { ControlDeck } from "./cabinet/ControlDeck";
 import { CoinInsert } from "./cabinet/CoinInsert";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { SHELL_COPY } from "./copy";

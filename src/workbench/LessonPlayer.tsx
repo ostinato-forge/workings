@@ -6,7 +6,7 @@ import {
 import type { SamplingConfig } from "../engine/sampling";
 import type { EngineProblem } from "../engine/run-record";
 import type { PlayBeat, FreePlayBeat, TokenMachineLesson } from "../lessons/types";
-import type { DeckProps } from "../shell/cabinet/ControlDeck";
+import type { DeckProps } from "../platform/controls";
 import { OddsBoard } from "./OddsBoard";
 import { ProbabilityBars } from "./ProbabilityBars";
 import { RunRail } from "./RunRail";

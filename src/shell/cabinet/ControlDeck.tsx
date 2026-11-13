@@ -1,27 +1,7 @@
 import DomeButton from "./DomeButton";
 import Joystick from "./Joystick";
 import { Knob } from "./Knob";
-import type { ComponentProps } from "react";
-
-export type DialControl = ComponentProps<typeof Knob> & { id: string };
-export type LessonNavigation = {
-  onBack?: () => void;
-  onNext?: () => void;
-  hint: string;
-};
-export type DeckProps = {
-  activated: boolean;
-  dials: DialControl[];
-  canStart: boolean;
-  startSublabel: string;
-  startLabel?: string;
-  onStart: () => void;
-  onStop?: () => void;
-  onReset?: () => void;
-  resetLabel?: string;
-  onStep?: () => void;
-  canStep?: boolean;
-};
+import type { DeckProps, LessonNavigation } from "../../platform/controls";
 
 export function ControlDeck({ experiment, navigation }: {
   experiment: DeckProps | null;

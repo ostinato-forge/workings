@@ -1,5 +1,5 @@
 import type { SamplingConfig } from "../engine/sampling";
-import type { DialControl } from "../shell/cabinet/ControlDeck";
+import type { DialControl } from "../platform/controls";
 
 export function samplingControls(
   value: SamplingConfig,

@@ -1,4 +1,4 @@
-import { AGENT_ENGINE_VERSION, type AgentProgram } from "../engine/agent-loop";
+import { AGENT_ENGINE_VERSION, type AgentProgram } from "../../engine/agent-loop";
 
 export type AgentEvidence = {
   revision: number;

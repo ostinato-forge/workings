@@ -32,7 +32,8 @@ coin flight and shortens startup.
 
 ## Shared platform
 
-- `src/platform/catalog.ts` declares courses and available lesson modules.
+- `src/platform/catalog.ts` defines what a catalog is and checks it.
+  `src/catalog.ts` declares the courses and available lesson modules.
   A lesson loads when opened. A course references lessons by ID, so the same
   module can appear in more than one course.
 - `src/platform/lesson.ts` defines the shared lesson steps.
@@ -58,7 +59,7 @@ For a custom engine or player:
    the common steps. Supply the subject's controls and evidence in its views.
 3. Call the experiment's `onSettled` only after the required evidence exists.
    Call completion through the shared flow, not from free-play interactions.
-4. Register the module's ID, title, description, and lazy loader in the catalog.
+4. Register the module's ID, title, description, and lazy loader in `src/catalog.ts`.
 5. Add its ID to an existing course or create a new course definition.
 6. Add a test of the teaching claim against the real run records and a browser
    journey through the learner's decisions.

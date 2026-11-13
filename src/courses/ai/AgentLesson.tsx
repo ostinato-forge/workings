@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LessonFlow, type LessonPlayerProps } from "../../platform/LessonFlow";
 import { checkAgent, programCode, runAgent, startAgent, stepAgent, stopAgent, type AgentProgram, type AgentRun } from "../../engine/agent-loop";
 import { parseAgentLesson, solutionProgram, type AgentFreeBeat, type AgentLesson, type AgentPlayBeat } from "../../training/agent-package";
-import { emptyEvidence, evidenceKey, readEvidence, type AgentEvidence } from "../../platform/agent-evidence";
+import { emptyEvidence, evidenceKey, readEvidence, type AgentEvidence } from "./agent-evidence";
 import "./agent-lesson.css";
 import { describeMessage, explainRun, explainStep } from "./agent-feedback";
 
