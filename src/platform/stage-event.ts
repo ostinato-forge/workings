@@ -130,7 +130,17 @@ function optionalString(event: Record<string, unknown>, key: string): string[] {
   return value === undefined || typeof value === "string" ? [] : [`The event's ${key} is not text.`];
 }
 
+// Never throws. Subject code builds the event, and a field can throw when
+// it is read.
 export function stageEventProblems(event: unknown): string[] {
+  try {
+    return eventProblems(event);
+  } catch {
+    return ["The event could not be read."];
+  }
+}
+
+function eventProblems(event: unknown): string[] {
   if (!isPlainRecord(event)) return ["The event is not an object."];
   const problems = unknownKeys(event, EVENT_KEYS, "The event");
   if (!isText(event.kind)) problems.push("The event has no kind.");

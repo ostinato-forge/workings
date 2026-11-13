@@ -128,7 +128,8 @@ export function counterSubjectWith(change: Partial<Subject<CounterWorld>> = {}):
         evidence: ["value"],
         compute: (runs, args) => {
           const last = runs.at(-1);
-          return last === undefined ? 0 : valueOf(last.final, String(args.counter)) ?? 0;
+          const name = args.counter;
+          return last === undefined || typeof name !== "string" ? 0 : valueOf(last.final, name) ?? 0;
         },
       }],
       ["status-count", {

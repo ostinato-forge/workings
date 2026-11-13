@@ -40,7 +40,8 @@ export const PLATFORM_MEASURES: ReadonlyMap<string, Measure<unknown>> = new Map<
     args: { artifact: { kind: "artifact" } },
     evidence: [],
     compute: (runs, args, { referenceRuns }) => {
-      const artifactId = String(args.artifact);
+      const artifactId = args.artifact;
+      if (typeof artifactId !== "string") return false;
       const text = artifactText(runs.at(-1), artifactId);
       const reference = artifactText(referenceRuns.at(-1), artifactId);
       return text !== undefined && reference !== undefined && normalizeText(text) === normalizeText(reference);

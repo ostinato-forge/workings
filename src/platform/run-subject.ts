@@ -13,6 +13,7 @@ import { checkRunSize, checkSourceLimits } from "./limits";
 import { assertRunRecordInvariants, type EngineProblem, type EngineResult, type StageRunRecord } from "./run-record";
 import { isPlainRecord } from "./stage-event";
 import { lookup, type Subject, type SubjectRunInput } from "./subject";
+import { quotedName, thrownMessage } from "./text";
 
 export const INTERNAL_ERROR: EngineProblem = Object.freeze({
   what: "The run stopped because of an internal error.",
@@ -43,10 +44,6 @@ function internal<World>(reason: string): RunReport<World> {
   return { result: failed(INTERNAL_ERROR), internal: reason };
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function isProblem(value: unknown): value is EngineProblem {
   return isPlainRecord(value) && typeof value.what === "string" && value.what.trim() !== "" &&
     typeof value.fix === "string" && value.fix.trim() !== "";
@@ -67,7 +64,7 @@ export function runSubjectWithReport<World>(subject: Subject<World>, input: Subj
     try {
       result = subject.run(input);
     } catch (error) {
-      return internal(`The subject's run threw: ${messageOf(error)}`);
+      return internal(`The subject's run threw: ${thrownMessage(error)}`);
     }
     // The type of run() promises a result, but subject code can break that
     // promise, so the parts the platform relies on are checked at run time.
@@ -86,11 +83,11 @@ export function runSubjectWithReport<World>(subject: Subject<World>, input: Subj
     try {
       assertRunRecordInvariants(result.record);
     } catch (error) {
-      return internal(`The run record breaks an invariant: ${messageOf(error)}`);
+      return internal(`The run record breaks an invariant: ${thrownMessage(error)}`);
     }
     return { result };
   } catch (error) {
-    return internal(`The run path failed: ${messageOf(error)}`);
+    return internal(`The run path failed: ${thrownMessage(error)}`);
   }
 }
 
@@ -107,22 +104,36 @@ function isOptionValue(value: unknown): boolean {
   return typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value));
 }
 
-function isRunInput(value: unknown): boolean {
+function isRunInput(value: unknown): value is SubjectRunInput<unknown> {
   return isPlainRecord(value) && isPlainRecord(value.sources) && Object.hasOwn(value, "world") &&
     typeof value.seed === "number" && Number.isFinite(value.seed) &&
     isPlainRecord(value.options) && Object.values(value.options).every(isOptionValue);
 }
 
+// The page side numbers calls from 1, so an answer under this id matches
+// no call and is ignored.
+const NO_REQUEST_ID = 0;
+
 // The worker side. Request data arrives from another context, so its shape
-// is checked before the subject sees it.
-export function handleRunRequest(lookupSubjects: ReadonlyMap<string, Subject<unknown>>, request: RunRequest): RunResponse {
-  const { requestId, subjectId } = request;
-  const subject = lookup(lookupSubjects, subjectId);
-  if (subject === undefined) {
-    return { requestId, result: failed({ what: `There is no subject named "${String(subjectId)}".`, fix: "Reload the page and try again." }) };
+// is checked before the subject sees it. Never throws.
+export function handleRunRequest(lookupSubjects: ReadonlyMap<string, Subject<unknown>>, request: unknown): RunResponse {
+  let requestId = NO_REQUEST_ID;
+  try {
+    if (!isPlainRecord(request)) return { requestId, result: failed(INVALID_REQUEST) };
+    const id = request.requestId;
+    if (typeof id !== "number" || !Number.isSafeInteger(id)) return { requestId, result: failed(INVALID_REQUEST) };
+    requestId = id;
+    const subjectId = request.subjectId;
+    const subject = lookup(lookupSubjects, subjectId);
+    if (subject === undefined) {
+      return { requestId, result: failed({ what: `There is no subject named ${quotedName(subjectId)}.`, fix: "Reload the page and try again." }) };
+    }
+    const input = request.input;
+    if (!isRunInput(input)) return { requestId, result: failed(INVALID_REQUEST) };
+    return { requestId, result: runSubject(subject, input) };
+  } catch {
+    return { requestId, result: failed(INVALID_REQUEST) };
   }
-  if (!isRunInput(request.input)) return { requestId, result: failed(INVALID_REQUEST) };
-  return { requestId, result: runSubject(subject, request.input) };
 }
 
 export type RunWorker = {

@@ -19,6 +19,7 @@ import {
   type MeasureValue,
   type Subject,
 } from "./subject";
+import { quotedName } from "./text";
 
 export const CONDITION_OPS = ["equals", "not-equals", "greater", "at-least", "less", "at-most", "includes", "excludes"] as const;
 export type ConditionOp = (typeof CONDITION_OPS)[number];
@@ -83,13 +84,23 @@ function argContextFor<World>(subject: Subject<World>, runs: StageRunRecord<Worl
   return { artifactIds: new Set(subject.artifacts.map((artifact) => artifact.id)), entityIds, factIds };
 }
 
+// Never throws. Lesson data can hold any value, including objects whose
+// fields throw when read.
 export function conditionProblems<World>(subject: Subject<World>, condition: unknown, context: ArgContext): string[] {
+  try {
+    return problemsOf(subject, condition, context);
+  } catch {
+    return ["The condition could not be read."];
+  }
+}
+
+function problemsOf<World>(subject: Subject<World>, condition: unknown, context: ArgContext): string[] {
   if (!isPlainRecord(condition)) return ["The condition is not an object."];
   const problems = Object.keys(condition)
     .filter((key) => !CONDITION_KEYS.includes(key))
     .map((key) => `The condition has an unknown field "${key}".`);
   const measure = findMeasure(subject, condition.measure);
-  if (measure === undefined) problems.push(`There is no measure named "${String(condition.measure)}".`);
+  if (measure === undefined) problems.push(`There is no measure named ${quotedName(condition.measure)}.`);
   else problems.push(...checkArgs(measure.args, condition.args, context));
   if (!isRunSelector(condition.run)) problems.push('The run must be "last", "all", or a run number of zero or more.');
   const { op, value } = condition;
@@ -176,9 +187,11 @@ function evaluate<World>(
   referenceRuns: StageRunRecord<World>[] | undefined,
   view: string,
 ): ConditionResult {
+  const data: unknown = condition;
+  if (!isPlainRecord(data)) return problemResult("The condition is not an object.");
   const name = condition.measure;
   const measure = findMeasure(subject, name);
-  if (measure === undefined) return problemResult(`There is no measure named "${String(name)}".`);
+  if (measure === undefined) return problemResult(`There is no measure named ${quotedName(name)}.`);
   const op: unknown = condition.op;
   if (!isOp(op)) return problemResult(`The comparison must be one of: ${CONDITION_OPS.join(", ")}.`);
   const selected = selectRuns(runs, condition.run);

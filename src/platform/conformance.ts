@@ -12,7 +12,7 @@ import type { StageRunRecord } from "./run-record";
 import { runSubjectWithReport, type RunReport } from "./run-subject";
 import { stageEventProblems, type StageEvent } from "./stage-event";
 import { checkArgs, isMeasureValue, type ArgContext, type ArgSpec, type MeasureArgs, type Subject, type WorldView } from "./subject";
-import { splitLines } from "./text";
+import { splitLines, thrownMessage } from "./text";
 
 export const CONFORMANCE_RULES = [
   "deterministic",
@@ -79,10 +79,6 @@ export function sampleArgs(spec: Record<string, ArgSpec>, context: ArgContext): 
   return { ok: true, args };
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function characterCount(text: string): number {
   let count = 0;
   for (const _ of text) count += 1;
@@ -122,7 +118,7 @@ class Checker<World> {
     try {
       return this.subject.describe({ world, sources, view });
     } catch (error) {
-      return `describe threw: ${messageOf(error)}`;
+      return `describe threw: ${thrownMessage(error)}`;
     }
   }
 
@@ -265,7 +261,7 @@ class Checker<World> {
         const value: unknown = measure.compute([], sampled.args, { referenceRuns: [] });
         return isMeasureValue(value) ? [] : report("It gave something that is not a value for an empty list of runs.");
       } catch (error) {
-        return report(`It threw for an empty list of runs: ${messageOf(error)}`);
+        return report(`It threw for an empty list of runs: ${thrownMessage(error)}`);
       }
     });
   }

@@ -12,6 +12,7 @@ import {
   type RunWorker,
 } from "./run-subject";
 import { defineSubject, type Subject, type SubjectRunInput } from "./subject";
+import { hostileValues, withThrowingField } from "./testing/hostile-values";
 
 type World = { total: number };
 
@@ -124,8 +125,44 @@ describe("runSubject", () => {
   });
 });
 
+describe("runSubjectWithReport with a subject that throws hostile values", () => {
+  const brokenMessage = new Error("unused");
+  Object.defineProperty(brokenMessage, "message", { get: () => { throw new Error("getter"); } });
+
+  test.each([...hostileValues(), ["an error whose message throws", brokenMessage]])("does not throw when the run throws %s", (_name, value) => {
+    const report = runSubjectWithReport(sumSubject(() => { throw value; }), input("1"));
+    expect(report.result).toEqual({ ok: false, problem: INTERNAL_ERROR });
+    expect(report.internal).toMatch(/^The subject's run threw: /);
+  });
+});
+
 describe("handleRunRequest", () => {
   const subjects = new Map<string, Subject<unknown>>([["sum", sumSubject()]]);
+  const valid = { requestId: 3, subjectId: "sum", input: input("4") };
+
+  test.each([
+    ...hostileValues().map(([name, value]): [string, unknown] => [`the request is ${name}`, value]),
+    ...["requestId", "subjectId", "input"].flatMap((field) => hostileValues()
+      .map(([name, value]): [string, unknown] => [`${field} is ${name}`, { ...valid, [field]: value }])),
+    ...["requestId", "subjectId", "input"].map((field): [string, unknown] => [`reading ${field} throws`, withThrowingField(valid, field)]),
+  ])("does not throw when %s", (name, request) => {
+    const response = handleRunRequest(subjects, request);
+    expect(typeof response.requestId).toBe("number");
+    // A request id that is a number is a valid id, so that request runs.
+    expect(response.result.ok).toBe(name === "requestId is a number");
+  });
+
+  test("names an unknown subject that is not text as that", () => {
+    expect(handleRunRequest(subjects, { ...valid, subjectId: JSON.parse('{"toString": 1}') }).result).toEqual({
+      ok: false,
+      problem: { what: "There is no subject named that.", fix: "Reload the page and try again." },
+    });
+  });
+
+  test("answers a request with no usable id under an id no call uses", () => {
+    expect(handleRunRequest(subjects, null)).toEqual({ requestId: 0, result: { ok: false, problem: { what: "The run request was not valid.", fix: "Reload the page and try again." } } });
+    expect(handleRunRequest(subjects, { ...valid, requestId: "3" }).requestId).toBe(0);
+  });
 
   test("runs the named subject and echoes the request id", () => {
     const response = handleRunRequest(subjects, { requestId: 7, subjectId: "sum", input: input("4") });

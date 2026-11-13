@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { PLATFORM_MEASURES } from "./measures";
 import type { StageRunRecord } from "./run-record";
 import type { MeasureArgs } from "./subject";
+import { hostileValues } from "./testing/hostile-values";
 import { normalizeText, splitLines } from "./text";
 
 function run(sources: Record<string, string>): StageRunRecord<null> {
@@ -26,6 +27,12 @@ describe("text helpers", () => {
 });
 
 describe("platform measures", () => {
+  test.each(hostileValues())("sources-match-reference gives false when the artifact is %s", (_name, value) => {
+    // The type says the argument is a value, but a caller may skip the argument check.
+    const args = { artifact: value } as MeasureArgs;
+    expect(compute("sources-match-reference", [run({ main: "x" })], args, [run({ main: "x" })])).toBe(false);
+  });
+
   test("are registered under exactly these names", () => {
     expect([...PLATFORM_MEASURES.keys()]).toEqual(["run-count", "sources-unchanged", "sources-match-reference"]);
   });

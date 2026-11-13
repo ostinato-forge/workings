@@ -9,7 +9,7 @@ import {
 } from "./conformance";
 import type { StageEvent } from "./stage-event";
 import { BROKEN_SUBJECTS, withEvents } from "./testing/broken-subjects";
-import { counterCases, counterHostileCases, counterSubject } from "./testing/counter-subject";
+import { counterCases, counterHostileCases, counterSubject, counterSubjectWith } from "./testing/counter-subject";
 
 describe("conformance suite", () => {
   test("names nine rules", () => {
@@ -74,6 +74,13 @@ describe("conformance suite", () => {
   test("accepts an event with no causes when it is a fault", () => {
     const subject = withEvents((event) => ({ ...event, kind: "fault", causes: [] }));
     expect(subjectConformanceProblems(subject, counterCases)).toEqual([]);
+  });
+
+  test("reports a describe that throws a value that cannot become text", () => {
+    const subject = counterSubjectWith({ describe: () => { throw JSON.parse('{"toString": 1}'); } });
+    const problems = conformanceProblemList(subject, counterCases);
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.some((problem) => problem.message === "describe threw: a value that is not an error")).toBe(true);
   });
 
   test("needs at least two cases", () => {

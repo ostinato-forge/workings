@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { conditionProblems, evaluateCondition, findMeasure, type Condition } from "./conditions";
 import type { StageRunRecord } from "./run-record";
 import { defineSubject, type ArgContext, type Measure, type Subject } from "./subject";
+import { hostileValues, withThrowingField } from "./testing/hostile-values";
 
 type World = { value: number };
 
@@ -140,6 +141,39 @@ describe("conditionProblems", () => {
     ["includes with a boolean", { ...condition(), op: "includes", value: true }],
   ])("reports %s", (_name, value) => {
     expect(conditionProblems(subject, value, context).length).toBeGreaterThan(0);
+  });
+});
+
+describe("conditions from hostile data", () => {
+  const context: ArgContext = { artifactIds: new Set(["main"]), entityIds: new Set(["counter"]), factIds: new Set(["value"]) };
+  const fields = ["measure", "args", "run", "op", "value", "unmet"];
+  const cases: [string, unknown][] = [
+    ...hostileValues().map(([name, value]): [string, unknown] => [`the condition is ${name}`, value]),
+    ...fields.flatMap((field) => hostileValues().map(([name, value]): [string, unknown] => [`${field} is ${name}`, { ...condition(), [field]: value }])),
+    ...hostileValues().map(([name, value]): [string, unknown] => [`an argument is ${name}`, { ...condition({ measure: "scaled" }), args: { by: value, target: "counter" } }]),
+    ...fields.map((field): [string, unknown] => [`reading ${field} throws`, withThrowingField(condition(), field)]),
+    ["reading an argument throws", { ...condition({ measure: "scaled" }), args: withThrowingField({ by: 1, target: "counter" }, "by") }],
+  ];
+
+  test.each(cases)("conditionProblems does not throw when %s", (_name, value) => {
+    const problems = conditionProblems(subject, value, context);
+    expect(problems.every((problem) => typeof problem === "string")).toBe(true);
+  });
+
+  test.each(cases)("evaluateCondition does not throw when %s", (_name, value) => {
+    // The type says Condition, but lesson data can hold anything.
+    const result = evaluateCondition(subject, value as Condition, { runs });
+    expect(typeof result.met).toBe("boolean");
+  });
+
+  test("names an unknown measure that is not text as that", () => {
+    const hostile: Condition = { ...condition(), measure: JSON.parse('{"toString": 1}') };
+    expect(conditionProblems(subject, hostile, context)).toContain("There is no measure named that.");
+    expect(evaluateCondition(subject, hostile, { runs }).problem).toBe("There is no measure named that.");
+  });
+
+  test("says a condition that is not an object is not an object", () => {
+    expect(evaluateCondition(subject, JSON.parse("null"), { runs }).problem).toBe("The condition is not an object.");
   });
 });
 

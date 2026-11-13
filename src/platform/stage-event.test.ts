@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { stageEventProblems, type StageEvent } from "./stage-event";
+import { withThrowingField } from "./testing/hostile-values";
 
 function event(): StageEvent {
   return {
@@ -119,5 +120,11 @@ describe("stageEventProblems", () => {
   test("treats prototype names in data as ordinary keys", () => {
     const data: unknown = JSON.parse('{"__proto__": "x", "constructor": 1}');
     expect(stageEventProblems(withChange((value) => { value.data = data; }))).toEqual([]);
+  });
+});
+
+describe("stageEventProblems with fields that throw when read", () => {
+  test.each(["kind", "causes", "targets", "data"])("reports an event whose %s throws", (field) => {
+    expect(stageEventProblems(withThrowingField(event(), field))).toEqual(["The event could not be read."]);
   });
 });
