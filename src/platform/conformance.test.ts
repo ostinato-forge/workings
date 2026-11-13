@@ -7,6 +7,7 @@ import {
   sampleArgs,
   subjectConformanceProblems,
 } from "./conformance";
+import { checkSourceLimits } from "./limits";
 import type { StageEvent } from "./stage-event";
 import { BROKEN_SUBJECTS, withEvents } from "./testing/broken-subjects";
 import { counterCases, counterHostileCases, counterSubject, counterSubjectWith } from "./testing/counter-subject";
@@ -99,6 +100,12 @@ describe("conformance suite", () => {
       "only prototype names",
       "null character",
       "only carriage returns",
+      "1,999 lines of one opening square bracket",
+      "YAML mappings nested 39 levels deep over several lines",
+      "YAML mappings nested 60 levels deep over several lines",
+      "unclosed template expression followed by 396 spaces",
+      "63,000 bytes of 399-character lines",
+      "1,999 lines of prototype names",
     ]);
     const text = (name: string) => HOSTILE_TEXTS.find((item) => item.name === name)?.text ?? "";
     expect(text("empty text")).toBe("");
@@ -109,6 +116,23 @@ describe("conformance suite", () => {
     expect(text("only prototype names").split("\n").filter(Boolean)).toEqual(["constructor", "__proto__", "prototype"]);
     expect(text("null character")).toContain("\u0000");
     expect(/^\r+$/.test(text("only carriage returns"))).toBe(true);
+    expect(text("1,999 lines of one opening square bracket").split("\n")).toEqual(Array.from({ length: 1_999 }, () => "["));
+    expect(text("YAML mappings nested 39 levels deep over several lines").split("{").length - 1).toBe(39);
+    expect(text("YAML mappings nested 60 levels deep over several lines").split("{").length - 1).toBe(60);
+    expect(text("YAML mappings nested 60 levels deep over several lines").split("\n").length).toBeGreaterThan(1);
+    expect(text("unclosed template expression followed by 396 spaces")).toBe(`{{${" ".repeat(396)}`);
+    const long = text("63,000 bytes of 399-character lines");
+    expect(new TextEncoder().encode(long).length).toBe(63_000);
+    expect(Math.max(...long.split("\n").map((line) => line.length))).toBe(399);
+    const names = text("1,999 lines of prototype names").split("\n");
+    expect(names).toHaveLength(1_999);
+    expect(names.slice(0, 4)).toEqual(["constructor", "__proto__", "prototype", "constructor"]);
+  });
+
+  // These texts fit inside every source limit, so the subject's own parser
+  // sees them. The first eight test the limits instead.
+  test.each(HOSTILE_TEXTS.slice(8))("$name passes the source limits", ({ text }) => {
+    expect(checkSourceLimits({ main: text })).toBeNull();
   });
 });
 

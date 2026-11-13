@@ -44,6 +44,22 @@ export type ConformanceProblem = { rule: ConformanceRule; caseName?: string; ste
 
 export const HOSTILE_TIME_LIMIT_MS = 1_000;
 
+// Flow-style mappings, one level per line, so the text stays inside the
+// line limits while the nesting grows.
+function nestedYaml(depth: number): string {
+  const open = Array.from({ length: depth }, (_, level) => `${" ".repeat(level)}{a:`);
+  return [...open, "1", "}".repeat(depth)].join("\n");
+}
+
+function linesOf(count: number, line: (index: number) => string): string {
+  return Array.from({ length: count }, (_, index) => line(index)).join("\n");
+}
+
+const PROTOTYPE_NAMES = ["constructor", "__proto__", "prototype"];
+
+// The first eight texts are stopped by the source limits, so they test the
+// limits. The rest fit inside every limit, so the subject's own parser sees
+// them.
 export const HOSTILE_TEXTS: readonly { name: string; text: string }[] = Object.freeze([
   { name: "empty text", text: "" },
   { name: "one megabyte of the letter a", text: "a".repeat(1_048_576) },
@@ -54,6 +70,13 @@ export const HOSTILE_TEXTS: readonly { name: string; text: string }[] = Object.f
   { name: "only prototype names", text: "constructor\n__proto__\nprototype\n" },
   { name: "null character", text: "name\u0000value\n" },
   { name: "only carriage returns", text: "\r".repeat(100) },
+  { name: "1,999 lines of one opening square bracket", text: linesOf(1_999, () => "[") },
+  { name: "YAML mappings nested 39 levels deep over several lines", text: nestedYaml(39) },
+  { name: "YAML mappings nested 60 levels deep over several lines", text: nestedYaml(60) },
+  { name: "unclosed template expression followed by 396 spaces", text: `{{${" ".repeat(396)}` },
+  // Each line and its line ending take 400 bytes, cut at exactly 63,000.
+  { name: "63,000 bytes of 399-character lines", text: `${"a".repeat(399)}\n`.repeat(158).slice(0, 63_000) },
+  { name: "1,999 lines of prototype names", text: linesOf(1_999, (index) => PROTOTYPE_NAMES[index % PROTOTYPE_NAMES.length] ?? "") },
 ]);
 
 type Sampled = { ok: true; args: MeasureArgs } | { ok: false; problem: string };
