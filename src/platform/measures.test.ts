@@ -3,7 +3,7 @@ import { PLATFORM_MEASURES } from "./measures";
 import type { StageRunRecord } from "./run-record";
 import type { MeasureArgs } from "./subject";
 import { hostileValues } from "./testing/hostile-values";
-import { normalizeText, splitLines } from "./text";
+import { countedLines, normalizeText, splitLines } from "./text";
 
 function run(sources: Record<string, string>): StageRunRecord<null> {
   return { engine: "test", seed: 0, config: { sources, options: {} }, initial: null, final: null, steps: [] };
@@ -23,6 +23,20 @@ describe("text helpers", () => {
 
   test("normalize line endings and trailing whitespace", () => {
     expect(normalizeText("a  \r\nb\t\r c")).toBe("a\nb\n c");
+  });
+
+  test("normalize away trailing empty lines and keep inner ones", () => {
+    expect(normalizeText("a\n")).toBe(normalizeText("a"));
+    expect(normalizeText("a\r\n  \r\n")).toBe("a");
+    expect(normalizeText("a\n\nb")).toBe("a\n\nb");
+    expect(normalizeText("")).toBe("");
+  });
+
+  test("count lines without one trailing empty line", () => {
+    expect(countedLines("a\nb")).toEqual(["a", "b"]);
+    expect(countedLines("a\nb\n")).toEqual(["a", "b"]);
+    expect(countedLines("a\n\n")).toEqual(["a", ""]);
+    expect(countedLines("")).toEqual([""]);
   });
 });
 
@@ -55,6 +69,12 @@ describe("platform measures", () => {
     const args = { artifact: "playbook" };
     expect(compute("sources-match-reference", [run({ playbook: "- hosts: all  \r\n  tasks: []\r\n" })], args, reference)).toBe(true);
     expect(compute("sources-match-reference", [run({ playbook: "- hosts: web\n  tasks: []\n" })], args, reference)).toBe(false);
+  });
+
+  test("sources-match-reference ignores a final newline", () => {
+    const args = { artifact: "main" };
+    expect(compute("sources-match-reference", [run({ main: "a\n" })], args, [run({ main: "a" })])).toBe(true);
+    expect(compute("sources-match-reference", [run({ main: "a" })], args, [run({ main: "a\n\n" })])).toBe(true);
   });
 
   test("sources-match-reference reads only the last run and the last reference run", () => {

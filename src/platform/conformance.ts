@@ -12,7 +12,7 @@ import type { StageRunRecord } from "./run-record";
 import { runSubjectWithReport, type RunReport } from "./run-subject";
 import type { StageEvent } from "./stage-event";
 import { checkArgs, isMeasureValue, lookup, type ArgContext, type ArgSpec, type MeasureArgs, type Subject, type WorldView } from "./subject";
-import { splitLines, thrownMessage } from "./text";
+import { countedLines, thrownMessage } from "./text";
 
 export const CONFORMANCE_RULES = [
   "deterministic",
@@ -222,7 +222,7 @@ class Checker<World> {
         if (artifact.kind !== "settings") return [`${where} names field "${ref.field}" of a text artifact.`];
         return artifact.fields.some((field) => field.id === ref.field) ? [] : [`${where} names field "${ref.field}", which the artifact does not declare.`];
       }
-      const lines = splitLines(text);
+      const lines = countedLines(text);
       if (ref.toLine > lines.length) return [`${where} points at line ${ref.toLine}, but the text has ${lines.length} lines.`];
       const length = characterCount(lines[ref.fromLine - 1] ?? "");
       const lastColumn = ref.toColumn ?? ref.fromColumn;

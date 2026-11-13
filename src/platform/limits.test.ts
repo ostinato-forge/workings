@@ -49,10 +49,23 @@ describe("checkSourceLimits", () => {
   });
 
   test("reports too many lines, counting every line ending", () => {
-    expect(checkSourceLimits({ site: "\r".repeat(2_000) }, names)).toEqual({
+    expect(checkSourceLimits({ site: "\r".repeat(2_001) }, names)).toEqual({
       what: "site.yml has 2,001 lines.",
       fix: "Keep each file to 2,000 lines or fewer.",
     });
+  });
+
+  test("does not count one trailing empty line", () => {
+    const lines = Array.from({ length: 2_000 }, () => "x").join("\n");
+    expect(checkSourceLimits({ site: `${lines}\n` }, names)).toBeNull();
+    expect(checkSourceLimits({ site: `${lines}\r\n` }, names)).toBeNull();
+    expect(checkSourceLimits({ site: `${lines}\n\n` }, names)?.what).toBe("site.yml has 2,001 lines.");
+  });
+
+  test("keeps line numbers in messages the same with or without a trailing newline", () => {
+    const text = ["ok", "a".repeat(401)].join("\n");
+    expect(checkSourceLimits({ site: text }, names)?.what).toBe("Line 2 of site.yml is 401 characters long.");
+    expect(checkSourceLimits({ site: `${text}\n` }, names)?.what).toBe("Line 2 of site.yml is 401 characters long.");
   });
 
   test("reports a line that is too long", () => {

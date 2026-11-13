@@ -107,6 +107,17 @@ describe("conformance suite", () => {
     expect(problems.some((problem) => problem.message === "describe threw: a value that is not an error")).toBe(true);
   });
 
+  test("counts the lines of a cause's text without a trailing newline", () => {
+    const pointAt = (line: number) => withEvents((event) => ({ ...event, causes: [{ ref: { artifactId: "counters", fromLine: line, toLine: line }, role: "primary" }] }));
+    const trailing = counterCases.map((item) => ({ ...item, sources: { counters: `${item.sources.counters ?? ""}\n` } }));
+    const message = (cases: typeof counterCases, line: number) =>
+      conformanceProblemList(pointAt(line), cases).find((problem) => problem.caseName === "adds and sets")?.message;
+    expect(message(counterCases, 7)).toBe("Cause 1 points at line 7, but the text has 6 lines.");
+    expect(message(trailing, 7)).toBe("Cause 1 points at line 7, but the text has 6 lines.");
+    expect(message(counterCases, 6)).toBeUndefined();
+    expect(message(trailing, 6)).toBeUndefined();
+  });
+
   test("needs at least two cases", () => {
     const [first] = counterCases;
     if (first === undefined) throw new Error("missing case");

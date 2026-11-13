@@ -6,7 +6,7 @@
 
 import type { EngineProblem } from "./run-record";
 import { isPlainRecord } from "./stage-event";
-import { splitLines } from "./text";
+import { countedLines } from "./text";
 
 export const LIMITS = Object.freeze({
   maxArtifacts: 8,
@@ -53,7 +53,7 @@ export function checkSourceLimits(sources: unknown, fileNames?: ReadonlyMap<stri
     return { what: `The files are ${count(total)} bytes long in total.`, fix: `Keep all files together to ${count(LIMITS.maxTotalBytes)} bytes or less.` };
   }
   for (const [id, text] of texts) {
-    const lines = splitLines(text);
+    const lines = countedLines(text);
     if (lines.length > LIMITS.maxArtifactLines) {
       return { what: `${nameOf(id)} has ${count(lines.length)} lines.`, fix: `Keep each file to ${count(LIMITS.maxArtifactLines)} lines or fewer.` };
     }
