@@ -15,6 +15,10 @@ const labels: Record<keyof AgentProgram, string> = {
   maxTurns: "Maximum model calls", onError: "When a tool returns an error", retries: "Maximum retries after errors",
 };
 function assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
+// The deck updates one frame after a step change, so a single reading can see the previous step.
+async function becomesDisabled(button: Locator, message: string) {
+  await button.and(button.page().locator(":disabled")).waitFor({ timeout: 2_000 }).catch(() => { throw new Error(message); });
+}
 async function accessibility(page: Page, state: string) {
   await animationsSettled(page);
   const issues = (await new AxeBuilder({ page }).analyze()).violations.filter((issue) => ["serious", "critical"].includes(issue.impact ?? ""));
@@ -130,8 +134,8 @@ async function main() {
       for (const beat of lesson.beats) {
         if (beat.kind === "play") {
           const go = page.getByRole("button", { name: "Continue", exact: true });
-          assert(await go.isDisabled(), `${beat.id}: premature continuation`);
-          assert(await page.getByRole("button", { name: "Run agent", exact: true }).isDisabled(), "Run should require a prediction.");
+          await becomesDisabled(go, `${beat.id}: premature continuation`);
+          await becomesDisabled(page.getByRole("button", { name: "Run agent", exact: true }), "Run should require a prediction.");
           await predict(page, beat, beat.program);
           await page.getByRole("button", { name: "Step agent", exact: true }).click();
           await page.getByRole("list", { name: "Execution trace events" }).waitFor();
