@@ -110,7 +110,10 @@ async function keyboardPlay(page: Page): Promise<void> {
     const start = page.getByRole("button", {
       name: /^Run$/,
     });
-    if (await start.isVisible().catch(() => false)) {
+    // Decide by the step's own content. The deck can show the previous step's
+    // Run button for one frame after a step change.
+    if (await page.locator(".playfield").isVisible().catch(() => false)) {
+      await start.waitFor();
       // Play beat. Satisfy the dial requirement when unmet.
       const unmet = await page.locator(".requirement.unmet").isVisible().catch(() => false);
       if (unmet) {
