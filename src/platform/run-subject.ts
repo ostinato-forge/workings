@@ -1,0 +1,205 @@
+/*
+ * The one path platform code uses to run a subject. It applies the input
+ * limits, catches anything the subject throws, and checks the record the
+ * subject returns, so a fault in a subject becomes a plain message instead
+ * of a broken lesson.
+ *
+ * In the browser, runs happen in a Web Worker. A slow regular expression
+ * or an endless loop cannot be stopped from inside the engine, so the page
+ * side stops the whole worker after a time limit and starts a fresh one.
+ */
+
+import { checkRunSize, checkSourceLimits } from "./limits";
+import { assertRunRecordInvariants, type EngineProblem, type EngineResult, type StageRunRecord } from "./run-record";
+import { isPlainRecord } from "./stage-event";
+import { lookup, type Subject, type SubjectRunInput } from "./subject";
+
+export const INTERNAL_ERROR: EngineProblem = Object.freeze({
+  what: "The run stopped because of an internal error.",
+  fix: "Try a different input. If this happens again, report it with the input that caused it.",
+});
+
+export const TIMEOUT_PROBLEM: EngineProblem = Object.freeze({
+  what: "The run took too long and was stopped.",
+  fix: "Simplify the input and run it again.",
+});
+
+const INVALID_REQUEST: EngineProblem = Object.freeze({
+  what: "The run request was not valid.",
+  fix: "Reload the page and try again.",
+});
+
+export type RunResult<World> = EngineResult<StageRunRecord<World>>;
+
+// The result for the learner, plus the developer-facing reason when the
+// subject itself was at fault. The conformance suite reads the reason.
+export type RunReport<World> = { result: RunResult<World>; internal?: string };
+
+function failed<World>(problem: EngineProblem): RunResult<World> {
+  return { ok: false, problem };
+}
+
+function internal<World>(reason: string): RunReport<World> {
+  return { result: failed(INTERNAL_ERROR), internal: reason };
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isProblem(value: unknown): value is EngineProblem {
+  return isPlainRecord(value) && typeof value.what === "string" && value.what.trim() !== "" &&
+    typeof value.fix === "string" && value.fix.trim() !== "";
+}
+
+export function runSubjectWithReport<World>(subject: Subject<World>, input: SubjectRunInput<World>): RunReport<World> {
+  try {
+    const fileNames = new Map(subject.artifacts.map((artifact) => [artifact.id, artifact.fileName]));
+    const limit = checkSourceLimits(input.sources, fileNames);
+    if (limit !== null) return { result: failed(limit) };
+    for (const id of Object.keys(input.sources)) {
+      if (!fileNames.has(id)) {
+        return { result: failed({ what: `The file "${id}" is not part of this subject.`, fix: "Remove that file and run again." }) };
+      }
+    }
+
+    let result: RunResult<World>;
+    try {
+      result = subject.run(input);
+    } catch (error) {
+      return internal(`The subject's run threw: ${messageOf(error)}`);
+    }
+    // The type of run() promises a result, but subject code can break that
+    // promise, so the parts the platform relies on are checked at run time.
+    const returned: unknown = result;
+    if (!isPlainRecord(returned) || typeof returned.ok !== "boolean") return internal("The subject's run did not return a result.");
+    if (!result.ok) {
+      return isProblem(result.problem)
+        ? { result: failed({ what: result.problem.what, fix: result.problem.fix }) }
+        : internal("The subject's run returned a problem without a what and a fix.");
+    }
+    const record: unknown = result.record;
+    if (!isPlainRecord(record) || !Array.isArray(record.steps)) return internal("The subject's run returned a record without steps.");
+    // The size check comes before the invariant check, which walks every step.
+    const size = checkRunSize({ steps: record.steps });
+    if (size !== null) return { result: failed(size) };
+    try {
+      assertRunRecordInvariants(result.record);
+    } catch (error) {
+      return internal(`The run record breaks an invariant: ${messageOf(error)}`);
+    }
+    return { result };
+  } catch (error) {
+    return internal(`The run path failed: ${messageOf(error)}`);
+  }
+}
+
+export function runSubject<World>(subject: Subject<World>, input: SubjectRunInput<World>): RunResult<World> {
+  return runSubjectWithReport(subject, input).result;
+}
+
+// Messages between the page and the run worker. A world crosses the
+// boundary as structured data, so the worker side sees it as unknown.
+export type RunRequest = { requestId: number; subjectId: string; input: SubjectRunInput<unknown> };
+export type RunResponse = { requestId: number; result: RunResult<unknown> };
+
+function isOptionValue(value: unknown): boolean {
+  return typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value));
+}
+
+function isRunInput(value: unknown): boolean {
+  return isPlainRecord(value) && isPlainRecord(value.sources) && Object.hasOwn(value, "world") &&
+    typeof value.seed === "number" && Number.isFinite(value.seed) &&
+    isPlainRecord(value.options) && Object.values(value.options).every(isOptionValue);
+}
+
+// The worker side. Request data arrives from another context, so its shape
+// is checked before the subject sees it.
+export function handleRunRequest(lookupSubjects: ReadonlyMap<string, Subject<unknown>>, request: RunRequest): RunResponse {
+  const { requestId, subjectId } = request;
+  const subject = lookup(lookupSubjects, subjectId);
+  if (subject === undefined) {
+    return { requestId, result: failed({ what: `There is no subject named "${String(subjectId)}".`, fix: "Reload the page and try again." }) };
+  }
+  if (!isRunInput(request.input)) return { requestId, result: failed(INVALID_REQUEST) };
+  return { requestId, result: runSubject(subject, request.input) };
+}
+
+export type RunWorker = {
+  postMessage(message: RunRequest): void;
+  terminate(): void;
+  onmessage: ((event: { data: unknown }) => void) | null;
+};
+
+export type Runner = {
+  run(subjectId: string, input: SubjectRunInput<unknown>): Promise<RunResult<unknown>>;
+};
+
+function isRunResult(value: unknown): value is RunResult<unknown> {
+  if (!isPlainRecord(value)) return false;
+  if (value.ok === false) return isProblem(value.problem);
+  if (value.ok !== true || !isPlainRecord(value.record)) return false;
+  const { record } = value;
+  return typeof record.engine === "string" && typeof record.seed === "number" && isPlainRecord(record.config) &&
+    isPlainRecord(record.config.sources) && isPlainRecord(record.config.options) &&
+    Object.hasOwn(record, "initial") && Object.hasOwn(record, "final") && Array.isArray(record.steps);
+}
+
+// The page side. Each call gets its own request id, and a call that gets no
+// answer in time stops the worker. A stopped worker loses every request it
+// held, so every call still waiting on it ends with the same problem, and
+// the next call starts a fresh worker.
+export function createRunner({ spawn, timeoutMs }: { spawn: () => RunWorker; timeoutMs: number }): Runner {
+  let worker: RunWorker | null = null;
+  let nextId = 1;
+  const pending = new Map<number, { resolve: (result: RunResult<unknown>) => void; timer: ReturnType<typeof setTimeout> }>();
+
+  const settle = (requestId: number, result: RunResult<unknown>) => {
+    const entry = pending.get(requestId);
+    if (entry === undefined) return;
+    pending.delete(requestId);
+    clearTimeout(entry.timer);
+    entry.resolve(result);
+  };
+
+  const receive = (data: unknown) => {
+    if (!isPlainRecord(data) || typeof data.requestId !== "number" || !pending.has(data.requestId)) return;
+    settle(data.requestId, isRunResult(data.result) ? data.result : failed(INTERNAL_ERROR));
+  };
+
+  const stop = () => {
+    const stopped = worker;
+    worker = null;
+    try {
+      stopped?.terminate();
+    } catch {
+      // The worker is dropped either way.
+    }
+    for (const requestId of [...pending.keys()]) settle(requestId, failed(TIMEOUT_PROBLEM));
+  };
+
+  const current = (): RunWorker => {
+    if (worker !== null) return worker;
+    const created = spawn();
+    // Answers from a worker that was stopped are ignored, even when they
+    // carry a request id that is still waiting.
+    created.onmessage = (event) => { if (worker === created) receive(event.data); };
+    worker = created;
+    return created;
+  };
+
+  return {
+    run(subjectId, input) {
+      return new Promise((resolve) => {
+        const requestId = nextId;
+        nextId += 1;
+        pending.set(requestId, { resolve, timer: setTimeout(stop, timeoutMs) });
+        try {
+          current().postMessage({ requestId, subjectId, input });
+        } catch {
+          settle(requestId, failed(INTERNAL_ERROR));
+        }
+      });
+    },
+  };
+}
