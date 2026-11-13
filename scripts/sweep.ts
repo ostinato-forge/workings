@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import AxeBuilder from "@axe-core/playwright";
 import { chromium, type Browser, type Page } from "playwright";
+import { animationsSettled } from "./settled";
 
 // A second sweep on the same machine can use another port.
 const PORT = Number(process.env.WORKINGS_SWEEP_PORT ?? 4173);
@@ -22,13 +23,14 @@ async function waitForServer(timeoutMs: number): Promise<void> {
 }
 
 async function axeCheck(page: Page, where: string): Promise<void> {
+  await animationsSettled(page);
   const results = await new AxeBuilder({ page }).analyze();
   const serious = results.violations.filter(
     (v) => v.impact === "serious" || v.impact === "critical",
   );
   if (serious.length > 0) {
     const detail = serious
-      .map((v) => `${v.id}: ${v.help} (${v.nodes.length} nodes)`)
+      .map((v) => `${v.id}: ${v.help} (${v.nodes.length} nodes: ${v.nodes.map((node) => node.target.join(" ")).join("; ")})`)
       .join("\n");
     throw new Error(`axe violations at ${where}:\n${detail}`);
   }

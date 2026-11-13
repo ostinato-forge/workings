@@ -2,17 +2,21 @@ import { mkdir, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { chromium, type Page, type Locator } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
+import { animationsSettled } from "./settled";
 import { parseAgentLesson, solutionProgram, type AgentLesson, type AgentPlayBeat } from "../src/training/agent-package";
 import { runAgent, type AgentProgram } from "../src/engine/agent-loop";
 
 const draft = process.argv.includes("--draft");
-const base = draft ? "http://127.0.0.1:5173/" : "http://127.0.0.1:4174/";
+// A second sweep on the same machine can use another port.
+const port = String(Number(process.env.WORKINGS_AGENT_SWEEP_PORT ?? 4174));
+const base = draft ? "http://127.0.0.1:5173/" : `http://127.0.0.1:${port}/`;
 const labels: Record<keyof AgentProgram, string> = {
   dispatch: "When the model requests a tool", observation: "After the tool returns", finish: "When the model returns an answer",
   maxTurns: "Maximum model calls", onError: "When a tool returns an error", retries: "Maximum retries after errors",
 };
 function assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
 async function accessibility(page: Page, state: string) {
+  await animationsSettled(page);
   const issues = (await new AxeBuilder({ page }).analyze()).violations.filter((issue) => ["serious", "critical"].includes(issue.impact ?? ""));
   assert(issues.length === 0, `${state}: ${issues.map((issue) => `${issue.id}: ${issue.nodes.map((node) => node.target.join()).join("; ")}`).join("\n")}`);
 }
@@ -93,7 +97,7 @@ async function main() {
   const metadata = draft ? [{ id: "draft" }] : JSON.parse(await readFile("src/content/catalog.json", "utf8")) as { id: string }[];
   assert(metadata.length > 0, "No accepted lessons to test.");
   const lessons = await Promise.all(metadata.map(async ({ id }) => parseAgentLesson(JSON.parse(await readFile(draft ? ".workings/preview.json" : `src/content/lessons/${id}.json`, "utf8")))));
-  const server = draft ? null : spawn("node", ["node_modules/vite/bin/vite.js", "preview", "--host", "127.0.0.1", "--port", "4174", "--strictPort"], { stdio: "ignore" });
+  const server = draft ? null : spawn("node", ["node_modules/vite/bin/vite.js", "preview", "--host", "127.0.0.1", "--port", port, "--strictPort"], { stdio: "ignore" });
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const errors: string[] = [];
   try {
