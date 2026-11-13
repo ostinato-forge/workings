@@ -3,8 +3,10 @@ import { join } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import AxeBuilder from "@axe-core/playwright";
 import { chromium, type Browser, type Page } from "playwright";
+import { animationsSettled } from "./settled";
 
-const PORT = 4173;
+// A second sweep on the same machine can use another port.
+const PORT = Number(process.env.WORKINGS_SWEEP_PORT ?? 4173);
 const URL = `http://localhost:${PORT}/`;
 
 async function waitForServer(timeoutMs: number): Promise<void> {
@@ -21,13 +23,14 @@ async function waitForServer(timeoutMs: number): Promise<void> {
 }
 
 async function axeCheck(page: Page, where: string): Promise<void> {
+  await animationsSettled(page);
   const results = await new AxeBuilder({ page }).analyze();
   const serious = results.violations.filter(
     (v) => v.impact === "serious" || v.impact === "critical",
   );
   if (serious.length > 0) {
     const detail = serious
-      .map((v) => `${v.id}: ${v.help} (${v.nodes.length} nodes)`)
+      .map((v) => `${v.id}: ${v.help} (${v.nodes.length} nodes: ${v.nodes.map((node) => node.target.join(" ")).join("; ")})`)
       .join("\n");
     throw new Error(`axe violations at ${where}:\n${detail}`);
   }
@@ -109,7 +112,10 @@ async function keyboardPlay(page: Page): Promise<void> {
     const start = page.getByRole("button", {
       name: /^Run$/,
     });
-    if (await start.isVisible().catch(() => false)) {
+    // Decide by the step's own content. The deck can show the previous step's
+    // Run button for one frame after a step change.
+    if (await page.locator(".playfield").isVisible().catch(() => false)) {
+      await start.waitFor();
       // Play beat. Satisfy the dial requirement when unmet.
       const unmet = await page.locator(".requirement.unmet").isVisible().catch(() => false);
       if (unmet) {
@@ -150,7 +156,9 @@ async function keyboardPlay(page: Page): Promise<void> {
         if (await continueButton.isEnabled().catch(() => false)) break;
         await pressUntilFocused(page, "button", /^Run$/, 25);
         await page.keyboard.press("Enter");
-        await page.waitForTimeout(200);
+        // A run replays one word at a time. Wait for the last word instead of
+        // guessing a delay, so the journey does not depend on machine speed.
+        await page.getByText(/Drawing word (\d+) of \1$/).waitFor({ timeout: 20_000 });
       }
       await page
         .getByRole("list", { name: "your runs so far" })
@@ -175,6 +183,30 @@ async function keyboardPlay(page: Page): Promise<void> {
   await pressUntilFocused(page, "link", /How AI works/, 15);
   await page.keyboard.press("Enter");
   await page.getByText("complete", { exact: true }).waitFor();
+}
+
+// Two presses of Run inside one frame must give two runs. The second press
+// arrives after the lesson has rendered the first run and before the deck
+// has received its updated handler.
+async function quickPressCheck(page: Page): Promise<void> {
+  await page.goto(URL);
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(`${URL}#/courses/ansible/lessons/desired-state`);
+  await page.reload();
+  await page.getByRole("button", { name: /insert coin|coin/i }).click();
+  await page.getByRole("button", { name: /^Continue$/ }).click();
+  await page.getByRole("radio", { name: /web-1 and web-2/ }).check();
+  const run = page.getByRole("button", { name: /^Run playbook$/ });
+  await run.and(page.locator(":enabled")).waitFor();
+  await run.evaluate(async (button: HTMLButtonElement) => {
+    button.click();
+    // Let the lesson render the first run. The deck has not been updated yet.
+    await Promise.resolve();
+    button.click();
+  });
+  await page.getByRole("heading", { name: "Run 2: 0 changed, 0 failed" }).waitFor({ timeout: 5_000 }).catch(() => {
+    throw new Error("a second quick press of Run repeated the first run");
+  });
 }
 
 async function viewportCheck(
@@ -487,6 +519,8 @@ async function sweep(): Promise<void> {
     await keyboardPlay(page);
     console.log("Checking the Ansible journey and saved progress.");
     await ansiblePlay(page);
+    console.log("Checking two quick presses of Run.");
+    await quickPressCheck(page);
     console.log("Checking saved links and missing routes.");
     await navigationChecks(page);
     console.log("Checking phone and landscape layouts.");
@@ -502,6 +536,16 @@ async function sweep(): Promise<void> {
     await storageChecks(browser);
   } catch (error) {
     await capture(page, "failure");
+    // Say where the journey stopped: the visible screen text and the focused control.
+    const screen = await page.locator("body").innerText().catch(() => "(page text unavailable)");
+    const focused = await page.evaluate(() => {
+      const element = document.activeElement;
+      if (element === null) return "nothing";
+      const label = element.getAttribute("aria-label") ?? element.textContent ?? "";
+      return `${element.tagName.toLowerCase()} "${label.trim().slice(0, 60)}"${(element as HTMLButtonElement).disabled ? " (disabled)" : ""}`;
+    }).catch(() => "(focus unavailable)");
+    console.error(`Sweep stopped at ${page.url()}\nFocused: ${focused}\nScreen text:\n${screen.slice(0, 2500)}`);
+    if (consoleErrors.length > 0) console.error(`Console errors:\n${consoleErrors.join("\n")}`);
     throw error;
   } finally {
     await browser.close();

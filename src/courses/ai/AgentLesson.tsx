@@ -88,9 +88,13 @@ function AgentWorkbench({ lesson, beat, onDeckChange, onSettled, onUnsettled }: 
     const trace = traceEnd.current?.parentElement;
     if (running && trace) trace.scrollTop = trace.scrollHeight;
   }, [run?.steps.length, running]);
+  // The deck gets its handlers one frame after a state change. Calling through a
+  // ref means a press in that frame still runs with the current state.
+  const latestBegin = useRef(begin);
+  latestBegin.current = begin;
   useEffect(() => {
     onDeckChange({ activated: true, dials: [], canStart: canRun, startLabel: "Run agent", startSublabel: play?.mode === "challenge" ? "test every case" : "follow the loop",
-      onStart: () => begin(true), onStep: () => begin(false), canStep: canRun,
+      onStart: () => latestBegin.current(true), onStep: () => latestBegin.current(false), canStep: canRun,
       onStop: running || run?.final.status === "running" ? () => { setRunning(false); setRun((current) => current ? stopAgent(current) : null); } : undefined,
       onReset: () => { setRunning(false); setRun(null); setPrediction(null); setCaseIndex(0); setInspectedStep(null); onUnsettled?.(); }, resetLabel: "Reset agent run" });
     return () => onDeckChange(null);
