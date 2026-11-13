@@ -4,6 +4,7 @@ import {
   assertRunRecordInvariants,
   snapshot,
   type RunRecord,
+  type StageRunRecord,
 } from "./run-record";
 
 type CounterState = { value: number };
@@ -95,5 +96,24 @@ describe("snapshot", () => {
     const copy = snapshot(source);
     copy.a.b = 2;
     expect(source.a.b).toBe(1);
+  });
+});
+
+describe("StageRunRecord", () => {
+  test("holds the artifact text and options of the run with stage events", () => {
+    const record: StageRunRecord<{ value: number }> = {
+      engine: "counter",
+      seed: 0,
+      config: { sources: { counters: "add 1 to a" }, options: { fast: true, limit: 3, mode: "x" } },
+      initial: { value: 0 },
+      final: { value: 1 },
+      steps: [{
+        index: 0,
+        event: { kind: "add", status: "changed", causes: [], targets: [], summary: "Added one." },
+        before: { value: 0 },
+        after: { value: 1 },
+      }],
+    };
+    expect(() => assertRunRecordInvariants(record)).not.toThrow();
   });
 });
