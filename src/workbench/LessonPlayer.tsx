@@ -94,6 +94,11 @@ function PlaySurface({
     if (next.length >= beat.minRuns) onSettled(next);
   };
 
+  // The deck gets its handlers one frame after a state change. Calling through a
+  // ref means a press in that frame still runs with the current state.
+  const latestRunOnce = useRef(runOnce);
+  latestRunOnce.current = runOnce;
+
   useEffect(() => {
     onDeckChange({
       activated: true,
@@ -108,7 +113,7 @@ function PlaySurface({
         records.length === 0
           ? "lock your prediction and run"
           : `run again (${records.length} of ${beat.minRuns} needed)`,
-      onStart: runOnce,
+      onStart: () => latestRunOnce.current(),
       onStop: () => {
         if (timer.current !== null) {
           clearInterval(timer.current);
@@ -214,6 +219,9 @@ function FreePlaySurface({
     setProblem(result.ok ? null : result.problem);
   };
 
+  const latestRun = useRef(run);
+  latestRun.current = run;
+
   useEffect(() => {
     onDeckChange({
       activated: true,
@@ -222,7 +230,7 @@ function FreePlaySurface({
       canStart: true,
       startSublabel: "run with these dials",
       startLabel: "Run with these dials",
-      onStart: run,
+      onStart: () => latestRun.current(),
     });
   }, [beat, lesson, sampling, onDeckChange]);
 

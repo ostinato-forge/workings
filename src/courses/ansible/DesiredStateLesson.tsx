@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LessonFlow, type LessonPlayerProps } from "../../platform/LessonFlow";
 import { desiredStateLesson, guidedPlaybook, initialHosts, initialSource, type AnsiblePlayBeat } from "./desired-state";
 import { parsePlaybook, runSimulation, type HostState, type SimulationRun } from "./simulation";
@@ -56,12 +56,17 @@ function AnsibleWorkbench({ beat, onSettled, onDeckChange }: {
     }
   };
 
+  // The deck gets its handlers one frame after a state change. Calling through a
+  // ref means a press in that frame still runs with the current state.
+  const latestRun = useRef(run);
+  latestRun.current = run;
+
   useEffect(() => {
     onDeckChange({
       activated: true, dials: [], canStart: canRun,
       startSublabel: runs.length === 0 ? "run the playbook" : "run the same playbook again",
       startLabel: runs.length === 0 ? "Run playbook" : "Run playbook again",
-      onStart: run,
+      onStart: () => latestRun.current(),
       onReset: !beat ? () => { setRuns([]); setProblem(null); } : undefined,
     });
   }, [beat, source, choice, runs, canRun, onDeckChange]);

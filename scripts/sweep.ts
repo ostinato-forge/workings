@@ -185,6 +185,30 @@ async function keyboardPlay(page: Page): Promise<void> {
   await page.getByText("complete", { exact: true }).waitFor();
 }
 
+// Two presses of Run inside one frame must give two runs. The second press
+// arrives after the lesson has rendered the first run and before the deck
+// has received its updated handler.
+async function quickPressCheck(page: Page): Promise<void> {
+  await page.goto(URL);
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(`${URL}#/courses/ansible/lessons/desired-state`);
+  await page.reload();
+  await page.getByRole("button", { name: /insert coin|coin/i }).click();
+  await page.getByRole("button", { name: /^Continue$/ }).click();
+  await page.getByRole("radio", { name: /web-1 and web-2/ }).check();
+  const run = page.getByRole("button", { name: /^Run playbook$/ });
+  await run.and(page.locator(":enabled")).waitFor();
+  await run.evaluate(async (button: HTMLButtonElement) => {
+    button.click();
+    // Let the lesson render the first run. The deck has not been updated yet.
+    await Promise.resolve();
+    button.click();
+  });
+  await page.getByRole("heading", { name: "Run 2: 0 changed, 0 failed" }).waitFor({ timeout: 5_000 }).catch(() => {
+    throw new Error("a second quick press of Run repeated the first run");
+  });
+}
+
 async function viewportCheck(
   page: Page,
   width: number,
@@ -495,6 +519,8 @@ async function sweep(): Promise<void> {
     await keyboardPlay(page);
     console.log("Checking the Ansible journey and saved progress.");
     await ansiblePlay(page);
+    console.log("Checking two quick presses of Run.");
+    await quickPressCheck(page);
     console.log("Checking saved links and missing routes.");
     await navigationChecks(page);
     console.log("Checking phone and landscape layouts.");
