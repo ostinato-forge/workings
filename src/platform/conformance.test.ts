@@ -4,6 +4,7 @@ import {
   conformanceProblemList,
   describeSubjectConformance,
   HOSTILE_TEXTS,
+  HOSTILE_TIME_LIMIT_MS,
   sampleArgs,
   subjectConformanceProblems,
 } from "./conformance";
@@ -11,7 +12,7 @@ import { checkSourceLimits } from "./limits";
 import { runSubject } from "./run-subject";
 import type { StageEvent } from "./stage-event";
 import { BROKEN_SUBJECTS, withEvents } from "./testing/broken-subjects";
-import { counterCases, counterHostileCases, counterSubject, counterSubjectWith } from "./testing/counter-subject";
+import { counterCases, counterHostileCases, counterRun, counterSubject, counterSubjectWith } from "./testing/counter-subject";
 
 describe("conformance suite", () => {
   test("names nine rules", () => {
@@ -117,6 +118,26 @@ describe("conformance suite", () => {
     expect(message(counterCases, 6)).toBeUndefined();
     expect(message(trailing, 6)).toBeUndefined();
   });
+
+  test("times a hostile run at its best of three before failing on time", () => {
+    // Slow on its first two runs of the null character text, as a run on a
+    // busy machine can be.
+    let slowRuns = 2;
+    const subject = counterSubjectWith({
+      run: (input) => {
+        if (slowRuns > 0 && Object.values(input.sources).some((text) => text.includes("\u0000"))) {
+          slowRuns -= 1;
+          const start = performance.now();
+          while (performance.now() - start < HOSTILE_TIME_LIMIT_MS + 100) {
+            // Busy wait.
+          }
+        }
+        return counterRun(input);
+      },
+    });
+    expect(conformanceProblemList(subject, counterCases).filter((problem) => problem.rule === "hostile-input-safe")).toEqual([]);
+    expect(slowRuns).toBe(0);
+  }, 60_000);
 
   test("needs at least two cases", () => {
     const [first] = counterCases;

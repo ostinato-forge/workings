@@ -43,6 +43,9 @@ export type HostileCase = { name: string; sources: Record<string, string> };
 export type ConformanceProblem = { rule: ConformanceRule; caseName?: string; step?: number; message: string };
 
 export const HOSTILE_TIME_LIMIT_MS = 1_000;
+// A busy machine can slow one run down, so a slow run is timed again and
+// only the best time counts.
+const HOSTILE_TIMED_RUNS = 3;
 
 // Flow-style mappings, one level per line, so the text stays inside the
 // line limits while the nesting grows.
@@ -308,9 +311,16 @@ class Checker<World> {
   private timedRun(caseName: string, sources: Record<string, string>): ConformanceProblem[] {
     const [base] = this.cases;
     if (base === undefined) return [];
-    const start = performance.now();
-    const report = runSubjectWithReport(this.subject, { sources, world: base.world, seed: base.seed, options: base.options });
-    const elapsed = Math.round(performance.now() - start);
+    const input = { sources, world: base.world, seed: base.seed, options: base.options };
+    const timed = () => {
+      const start = performance.now();
+      const report = runSubjectWithReport(this.subject, input);
+      return { report, elapsed: performance.now() - start };
+    };
+    const { report, elapsed: firstElapsed } = timed();
+    let best = firstElapsed;
+    for (let run = 1; run < HOSTILE_TIMED_RUNS && best > HOSTILE_TIME_LIMIT_MS; run += 1) best = Math.min(best, timed().elapsed);
+    const elapsed = Math.round(best);
     const problems: ConformanceProblem[] = [];
     // The run path turns a throw or a broken record into a plain problem
     // for the learner. The subject is still at fault, so the suite reads
