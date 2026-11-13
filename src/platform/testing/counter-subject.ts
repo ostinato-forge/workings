@@ -161,7 +161,7 @@ export const counterCases: CounterCase[] = [
   },
   {
     name: "parity view",
-    sources: { counters: "add 0 to a\r\nadd 2 to a\r\nset b to 0\r\ncheck a" },
+    sources: { counters: "add 0 to a\r\nadd 2 to a\r\nset a to 2\r\nset b to 0\r\ncheck a" },
     world: { counters: [] },
     seed: 7,
     options: { verbose: true },
