@@ -2,9 +2,11 @@
 
 > **Status:** The arcade shell, the lesson engine, and the in-browser model engine run from a fresh clone, with 158 passing tests. Not every lesson has complete content yet, and the cabinet port is in progress. Maintained; active build.
 
-Workings is an arcade-style course on how AI language models work. Each lesson is playable. You turn the knobs and watch a real, small model respond, instead of reading words and looking at pictures.
+Workings is a training platform for any subject. A lesson shows how a system actually works. You change a setting, run it, and watch what happens, instead of reading text, looking at pictures, or following lab steps.
 
-The model engine is written in TypeScript and runs entirely in the browser: a tokenizer, byte-pair encoding, bigram and transformer models, sampling, and a token machine that replays training curves. There is no server and no API key.
+The first course, and the only one in this repository so far, teaches how AI language models work. You turn the knobs on an arcade cabinet and watch a real, small model respond.
+
+The model engine for that course is written in TypeScript and runs entirely in the browser: a tokenizer, byte-pair encoding, bigram and transformer models, sampling, and a token machine that replays training curves. There is no server and no API key.
 
 ## Run it
 
