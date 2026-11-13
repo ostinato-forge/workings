@@ -73,9 +73,8 @@ marketplaces, and authoring tools discussed during planning out of project files
 lesson packages, links, and delivered content. Adapt ideas rather than copying
 their files.
 
-The implementation plan and pilot scope are in
-[the generated training plan](docs/plans/2026-09-27-generated-training.md).
 Use [the authoring guide](training/README.md) for the available local commands.
+The pilot scope is in [the pilot notes](training/PILOT.md).
 
 ## Scope still open
 

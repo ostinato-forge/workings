@@ -1,9 +1,12 @@
 # Workings
 
-Workings is a general teaching platform. Learners predict what will happen,
-change something, run an experiment, and inspect the result. AI and Ansible are
-the first courses. The AI course includes agent tool use, bounded retries, and
-model sampling. The Ansible course contains one lesson.
+> **Status:** Active build on the `feat/platform-foundation` branch. Two courses run from a fresh clone: AI (three lessons) and Ansible (one lesson). Unit tests and both browser sweeps pass. No learner trial has been run yet.
+
+Workings is a training platform for any subject. A lesson shows how a system
+actually works. You predict what will happen, change something, run it, and
+watch the result, instead of reading text, looking at pictures, or following
+lab steps. AI and Ansible are the first courses. The AI course covers agent
+tool use, bounded retries, and model sampling. The Ansible course has one lesson.
 
 See [PRODUCT.md](PRODUCT.md) for the accepted direction and current scope.
 
@@ -75,9 +78,7 @@ are a browser simulation, not an Ansible installation.
 The platform copy also rejects multiple plays explicitly, so an extra play
 cannot be silently ignored.
 
-The original full Ansible course remains in its own repository. The
-[AI course design](docs/superpowers/specs/2026-07-24-workings-ai-course-design.md)
-describes the wider AI curriculum planned in July 2026.
+The original full Ansible course remains in its own repository.
 
 ## Verify
 
@@ -96,3 +97,7 @@ the current experiment, including when browser storage is unavailable.
 Set `WORKINGS_SCREENSHOT_DIR` to save browser screenshots from the sweep.
 Playwright needs a local Chromium installation; install its browser with
 `npx playwright install chromium` if it is missing.
+
+## License
+
+Apache-2.0. Attribution: eparenti.
