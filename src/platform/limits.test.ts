@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { checkDataLimits, checkRunSize, checkSourceLimits, LIMITS } from "./limits";
+import { checkDataLimits, checkRepeatedWork, checkRunSize, checkSourceLimits, LIMITS, REPEATED_WORK } from "./limits";
 
 describe("LIMITS", () => {
   test("holds every input limit", () => {
@@ -12,6 +12,7 @@ describe("LIMITS", () => {
       maxDataDepth: 40,
       maxDataNodes: 20_000,
       maxRunSteps: 5_000,
+      maxRepeatedWork: 2_000,
     });
     expect(Object.isFrozen(LIMITS)).toBe(true);
   });
@@ -144,6 +145,26 @@ describe("checkDataLimits", () => {
   test("counts shared values each time they appear", () => {
     const shared = Array.from({ length: 5_000 }, () => 1);
     expect(checkDataLimits([shared, shared, shared, shared])?.what).toMatch(/20,000 values/);
+  });
+});
+
+describe("checkRepeatedWork", () => {
+  test("names the work it can count", () => {
+    expect(REPEATED_WORK).toEqual(["task"]);
+  });
+
+  test("accepts work at the limit and reports work past it", () => {
+    expect(checkRepeatedWork(0, "task")).toBeNull();
+    expect(checkRepeatedWork(2_000, "task")).toBeNull();
+    expect(checkRepeatedWork(6_000, "task")).toEqual({
+      what: "This run would repeat a task 6,000 times.",
+      fix: "Use fewer loop items or fewer servers, so the total is 2,000 or fewer.",
+    });
+  });
+
+  test("reports a count that is not a finite number", () => {
+    expect(checkRepeatedWork(Number.POSITIVE_INFINITY, "task")?.what).toBe("This run would repeat a task more than 2,000 times.");
+    expect(checkRepeatedWork(Number.NaN, "task")?.what).toBe("This run would repeat a task more than 2,000 times.");
   });
 });
 

@@ -17,6 +17,8 @@ export const LIMITS = Object.freeze({
   maxDataDepth: 40,
   maxDataNodes: 20_000,
   maxRunSteps: 5_000,
+  // Loop items times entities. It cannot be counted before parsing.
+  maxRepeatedWork: 2_000,
 });
 
 const count = (value: number) => value.toLocaleString("en-US");
@@ -94,6 +96,27 @@ export function checkDataLimits(value: unknown): EngineProblem | null {
 
 function tooManyValues(): EngineProblem {
   return { what: `The data holds more than ${count(LIMITS.maxDataNodes)} values.`, fix: `Keep the data to ${count(LIMITS.maxDataNodes)} values or fewer.` };
+}
+
+// The work an engine may count. The message is fixed for each kind, so an
+// engine cannot put free text in front of the learner.
+export const REPEATED_WORK = ["task"] as const;
+export type RepeatedWork = (typeof REPEATED_WORK)[number];
+
+const REPEATED_WORK_TEXT: Record<RepeatedWork, { noun: string; fix: string }> = {
+  task: { noun: "a task", fix: "Use fewer loop items or fewer servers" },
+};
+
+// Engines call this once they know how often the input repeats some work,
+// such as a task over every loop item on every server.
+export function checkRepeatedWork(total: number, what: RepeatedWork): EngineProblem | null {
+  if (Number.isFinite(total) && total <= LIMITS.maxRepeatedWork) return null;
+  const text = REPEATED_WORK_TEXT[what];
+  const times = Number.isFinite(total) ? count(total) : `more than ${count(LIMITS.maxRepeatedWork)}`;
+  return {
+    what: `This run would repeat ${text.noun} ${times} times.`,
+    fix: `${text.fix}, so the total is ${count(LIMITS.maxRepeatedWork)} or fewer.`,
+  };
 }
 
 export function checkRunSize(record: { steps: readonly unknown[] }): EngineProblem | null {
