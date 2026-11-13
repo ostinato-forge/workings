@@ -2,9 +2,19 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { readFile } from "node:fs/promises";
+import { CONTENT_SECURITY_POLICY } from "./scripts/content-security-policy";
 
 export default defineConfig({
   plugins: [react(), {
+    // The development server needs inline scripts for live reload, so the policy is added to builds only.
+    name: "workings-content-security-policy",
+    apply: "build",
+    transformIndexHtml: () => [{
+      tag: "meta",
+      attrs: { "http-equiv": "Content-Security-Policy", content: CONTENT_SECURITY_POLICY },
+      injectTo: "head-prepend",
+    }],
+  }, {
     name: "workings-local-draft",
     configureServer(server) {
       server.middlewares.use("/__workings_draft", async (request, response) => {
@@ -16,6 +26,8 @@ export default defineConfig({
       });
     },
   }],
+  // Small fonts and images ship as files. Embedding them as data would need a looser policy.
+  build: { assetsInlineLimit: 0 },
   test: {
     globals: true,
     environment: "node",
