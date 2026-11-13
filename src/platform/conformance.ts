@@ -132,7 +132,7 @@ class Checker<World> {
       case "record-invariants": return this.recordInvariants();
       case "event-shape": return this.eventShape();
       case "causes-exist": return this.perEvent(rule, (event, _step, record) => this.causeProblems(event, record));
-      case "targets-exist": return this.perEvent(rule, (event, step, record, item) => this.targetProblems(event, step, record, item));
+      case "targets-exist": return this.perEvent(rule, (event, step, record, item) => this.targetProblems(event, step, record, item.view));
       case "changed-is-visible": return this.perEvent(rule, (event, step, record, item) => this.visibleProblems(event, step, record, item));
       case "after-points-back": return this.perEvent(rule, (event, step) => (event.after ?? [])
         .filter((index) => index >= step.index)
@@ -208,14 +208,14 @@ class Checker<World> {
     });
   }
 
-  private views(step: StageRunRecord<World>["steps"][number], record: StageRunRecord<World>, item: ConformanceCase<World>) {
+  private views(step: StageRunRecord<World>["steps"][number], record: StageRunRecord<World>, view: string) {
     const sources = record.config.sources;
-    return { before: this.describeWorld(step.before, sources, item.view), after: this.describeWorld(step.after, sources, item.view) };
+    return { before: this.describeWorld(step.before, sources, view), after: this.describeWorld(step.after, sources, view) };
   }
 
-  private targetProblems(event: StageEvent, step: StageRunRecord<World>["steps"][number], record: StageRunRecord<World>, item: ConformanceCase<World>): string[] {
+  private targetProblems(event: StageEvent, step: StageRunRecord<World>["steps"][number], record: StageRunRecord<World>, view: string): string[] {
     if (event.targets.length === 0) return [];
-    const { before, after } = this.views(step, record, item);
+    const { before, after } = this.views(step, record, view);
     if (typeof before === "string") return [before];
     if (typeof after === "string") return [after];
     return event.targets.flatMap((target) => {
@@ -229,7 +229,7 @@ class Checker<World> {
 
   private visibleProblems(event: StageEvent, step: StageRunRecord<World>["steps"][number], record: StageRunRecord<World>, item: ConformanceCase<World>): string[] {
     if (event.status !== "changed" && event.status !== "unchanged") return [];
-    const { before, after } = this.views(step, record, item);
+    const { before, after } = this.views(step, record, item.view);
     if (typeof before === "string") return [before];
     if (typeof after === "string") return [after];
     const same = JSON.stringify(before) === JSON.stringify(after);
@@ -270,19 +270,40 @@ class Checker<World> {
     });
   }
 
+  // The event checks that matter most for text the subject was not built
+  // for. Each message names the check, since all of them are reported
+  // under hostile-input-safe.
+  private hostileRecordProblems(record: StageRunRecord<World>, view: string): { step: number; message: string }[] {
+    return record.steps.flatMap((step) => {
+      const shape = stageEventProblems(step.event);
+      if (shape.length > 0) return shape.map((message) => ({ step: step.index, message: `event-shape: ${message}` }));
+      return [
+        ...this.causeProblems(step.event, record).map((message) => `causes-exist: ${message}`),
+        ...this.targetProblems(step.event, step, record, view).map((message) => `targets-exist: ${message}`),
+      ].map((message) => ({ step: step.index, message }));
+    });
+  }
+
   private timedRun(caseName: string, sources: Record<string, string>): ConformanceProblem[] {
     const [base] = this.cases;
     if (base === undefined) return [];
     const start = performance.now();
-    try {
-      runSubjectWithReport(this.subject, { sources, world: base.world, seed: base.seed, options: base.options });
-    } catch (error) {
-      return [{ rule: "hostile-input-safe", caseName, message: `The run threw: ${messageOf(error)}` }];
-    }
+    const report = runSubjectWithReport(this.subject, { sources, world: base.world, seed: base.seed, options: base.options });
     const elapsed = Math.round(performance.now() - start);
-    return elapsed > HOSTILE_TIME_LIMIT_MS
-      ? [{ rule: "hostile-input-safe", caseName, message: `The run took ${elapsed} milliseconds, over the limit of ${HOSTILE_TIME_LIMIT_MS}.` }]
-      : [];
+    const problems: ConformanceProblem[] = [];
+    // The run path turns a throw or a broken record into a plain problem
+    // for the learner. The subject is still at fault, so the suite reads
+    // the reason the run path kept.
+    if (report.internal !== undefined) {
+      problems.push({ rule: "hostile-input-safe", caseName, message: `The run had an internal fault: ${report.internal}` });
+    } else if (report.result.ok) {
+      problems.push(...this.hostileRecordProblems(report.result.record, base.view)
+        .map(({ step, message }) => ({ rule: "hostile-input-safe" as const, caseName, step, message })));
+    }
+    if (elapsed > HOSTILE_TIME_LIMIT_MS) {
+      problems.push({ rule: "hostile-input-safe", caseName, message: `The run took ${elapsed} milliseconds, over the limit of ${HOSTILE_TIME_LIMIT_MS}.` });
+    }
+    return problems;
   }
 
   private hostileInputSafe(): ConformanceProblem[] {

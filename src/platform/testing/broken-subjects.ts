@@ -1,7 +1,9 @@
 /*
- * One variant of the counter subject per conformance rule. Each variant
- * breaks exactly one rule, so the tests can show that the suite reports a
- * fault under the right rule and no other. Nothing outside tests imports it.
+ * Variants of the counter subject, at least one per conformance rule. Each
+ * variant breaks one rule, so the tests can show that the suite reports a
+ * fault under the right rule. A fault that shows in every run also shows
+ * under hostile-input-safe, and the variant says so. Nothing outside tests
+ * imports it.
  */
 
 import type { ConformanceRule } from "../conformance";
@@ -68,12 +70,39 @@ function slowOnNullCharacter(): Subject<CounterWorld> {
   });
 }
 
-export const BROKEN_SUBJECTS: { rule: ConformanceRule; subject: Subject<CounterWorld> }[] = [
+// Throws on text with a null character, which only the hostile texts hold.
+function throwsOnNullCharacter(): Subject<CounterWorld> {
+  return counterSubjectWith({
+    run: (input) => {
+      if (Object.values(input.sources).some((text) => text.includes("\u0000"))) throw new Error("cannot read a null character");
+      return counterRun(input);
+    },
+  });
+}
+
+// Returns an event with no summary for text that names "__proto__", which
+// only the hostile cases do.
+function malformedOnPrototypeName(): Subject<CounterWorld> {
+  return counterSubjectWith({
+    run: (input) => {
+      const result = counterRun(input);
+      if (!result.ok || !Object.values(input.sources).some((text) => text.includes("__proto__"))) return result;
+      const steps = result.record.steps.map((step) => ({ ...step, event: { ...step.event, summary: "" } }));
+      return { ok: true, record: { ...result.record, steps } };
+    },
+  });
+}
+
+// "also" names the other rules a variant breaks.
+export type BrokenSubject = { rule: ConformanceRule; also?: ConformanceRule[]; subject: Subject<CounterWorld> };
+
+export const BROKEN_SUBJECTS: BrokenSubject[] = [
   { rule: "deterministic", subject: nondeterministic() },
-  { rule: "record-invariants", subject: withSteps((step) => ({ ...step, index: step.index + 1 })) },
-  { rule: "event-shape", subject: withEvents((event) => (event.kind === "check" ? { ...event, summary: "" } : event)) },
+  { rule: "record-invariants", also: ["hostile-input-safe"], subject: withSteps((step) => ({ ...step, index: step.index + 1 })) },
+  { rule: "event-shape", also: ["hostile-input-safe"], subject: withEvents((event) => (event.kind === "check" ? { ...event, summary: "" } : event)) },
   {
     rule: "causes-exist",
+    also: ["hostile-input-safe"],
     subject: withEvents((event) => ({
       ...event,
       causes: event.causes.map((cause) => ("field" in cause.ref
@@ -83,10 +112,13 @@ export const BROKEN_SUBJECTS: { rule: ConformanceRule; subject: Subject<CounterW
   },
   {
     rule: "targets-exist",
+    also: ["hostile-input-safe"],
     subject: withEvents((event) => ({ ...event, targets: event.targets.map((target) => ({ ...target, entityId: `${target.entityId}-missing` })) })),
   },
   { rule: "changed-is-visible", subject: withEvents((event) => (event.status === "unchanged" ? { ...event, status: "changed" } : event)) },
   { rule: "after-points-back", subject: withEvents((event, step) => ({ ...event, after: [step.index] })) },
   { rule: "measures-total", subject: counterSubjectWith({ measures: new Map([...counterSubject.measures, ["last-step-count", lastStepCount]]) }) },
   { rule: "hostile-input-safe", subject: slowOnNullCharacter() },
+  { rule: "hostile-input-safe", subject: throwsOnNullCharacter() },
+  { rule: "hostile-input-safe", subject: malformedOnPrototypeName() },
 ];

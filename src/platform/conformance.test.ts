@@ -23,15 +23,32 @@ describe("conformance suite", () => {
     expect(subjectConformanceProblems(counterSubject, counterCases, counterHostileCases)).toEqual([]);
   });
 
-  test("has one broken subject for each rule", () => {
-    expect(BROKEN_SUBJECTS.map((broken) => broken.rule)).toEqual([...CONFORMANCE_RULES]);
+  test("has at least one broken subject for each rule", () => {
+    expect([...new Set(BROKEN_SUBJECTS.map((broken) => broken.rule))]).toEqual([...CONFORMANCE_RULES]);
   });
 
-  test.each(BROKEN_SUBJECTS)("reports the subject that breaks $rule under that rule only", ({ rule, subject }) => {
+  test.each(BROKEN_SUBJECTS)("reports the subject that breaks $rule under that rule only", ({ rule, also, subject }) => {
     const problems = conformanceProblemList(subject, counterCases, counterHostileCases);
     expect(problems.length).toBeGreaterThan(0);
-    expect([...new Set(problems.map((problem) => problem.rule))]).toEqual([rule]);
+    expect([...new Set(problems.map((problem) => problem.rule))]).toEqual([rule, ...(also ?? [])]);
   }, 60_000);
+
+  test("reports a run that throws on hostile text, with the reason", () => {
+    const broken = BROKEN_SUBJECTS.filter((item) => item.rule === "hostile-input-safe")[1];
+    if (broken === undefined) throw new Error("missing broken subject");
+    const problems = conformanceProblemList(broken.subject, counterCases, counterHostileCases);
+    expect(problems.map((problem) => problem.caseName)).toEqual(["null character in counters"]);
+    expect(problems[0]?.message).toMatch(/cannot read a null character/);
+  });
+
+  test("checks the events of a run on hostile text", () => {
+    const broken = BROKEN_SUBJECTS.filter((item) => item.rule === "hostile-input-safe")[2];
+    if (broken === undefined) throw new Error("missing broken subject");
+    const problems = conformanceProblemList(broken.subject, counterCases, counterHostileCases);
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.every((problem) => problem.caseName === "prototype names as counters")).toBe(true);
+    expect(problems[0]).toMatchObject({ step: 0, message: "event-shape: The event's summary is empty." });
+  });
 
   test("names the rule, the case, and the step in each problem", () => {
     const broken = BROKEN_SUBJECTS.find((item) => item.rule === "changed-is-visible");
