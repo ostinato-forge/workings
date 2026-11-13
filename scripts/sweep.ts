@@ -4,7 +4,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import AxeBuilder from "@axe-core/playwright";
 import { chromium, type Browser, type Page } from "playwright";
 
-const PORT = 4173;
+// A second sweep on the same machine can use another port.
+const PORT = Number(process.env.WORKINGS_SWEEP_PORT ?? 4173);
 const URL = `http://localhost:${PORT}/`;
 
 async function waitForServer(timeoutMs: number): Promise<void> {
@@ -150,13 +151,9 @@ async function keyboardPlay(page: Page): Promise<void> {
         if (await continueButton.isEnabled().catch(() => false)) break;
         await pressUntilFocused(page, "button", /^Run$/, 25);
         await page.keyboard.press("Enter");
-        // A run replays one step at a time. Wait for it to end instead of
+        // A run replays one word at a time. Wait for the last word instead of
         // guessing a delay, so the journey does not depend on machine speed.
-        await page.waitForFunction(() => {
-          const named = (name: string) => [...document.querySelectorAll("button")]
-            .find((button) => button.getAttribute("aria-label") === name);
-          return named("Continue")?.disabled === false || named("Run")?.disabled === false;
-        }, undefined, { timeout: 20_000 });
+        await page.getByText(/Drawing word (\d+) of \1$/).waitFor({ timeout: 20_000 });
       }
       await page
         .getByRole("list", { name: "your runs so far" })
