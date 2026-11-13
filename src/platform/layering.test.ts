@@ -71,4 +71,14 @@ describe("platform layering", () => {
     });
     expect(problems).toEqual([]);
   });
+
+  test("only tests import the platform's test support", () => {
+    const testingDir = join(platformDir, "testing");
+    const appFiles = sourceFiles(resolve(platformDir, "..")).filter((file) =>
+      !/\.test\.tsx?$/.test(file) && !file.startsWith(testingDir + sep));
+    const problems = appFiles.flatMap((file) => importSpecifiers(readFileSync(file, "utf8"))
+      .filter((specifier) => specifier.startsWith(".") && resolve(dirname(file), specifier).startsWith(testingDir + sep))
+      .map((specifier) => `${relative(rootDir, file)}: ${specifier}`));
+    expect(problems).toEqual([]);
+  });
 });
