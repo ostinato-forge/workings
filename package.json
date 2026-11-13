@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "sweep": "npm run build && tsx scripts/sweep.ts",
     "sweep:agents": "npm run build && tsx scripts/agent-sweep.ts",
+    "check:dist": "tsx scripts/check-dist.ts",
+    "gate": "npm test && npm run sweep && npm run sweep:agents && npm run check:dist",
     "training": "tsx scripts/training.ts",
     "pretest": "tsc --noEmit",
     "test": "vitest run",
@@ -19,23 +21,23 @@
     "train": "tsx models/train/train-coref.ts && tsx models/train/train-curves.ts"
   },
   "dependencies": {
-    "@fontsource/atkinson-hyperlegible": "^5.3.0",
-    "@fontsource/ibm-plex-mono": "^5.3.0",
-    "@fontsource/press-start-2p": "^5.3.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "@fontsource/atkinson-hyperlegible": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/press-start-2p": "5.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "yaml": "2.9.0"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.4",
-    "playwright": "^1.62.0",
-    "tsx": "^4.19.0",
-    "typescript": "^7.0.2",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10"
+    "@axe-core/playwright": "4.12.1",
+    "@types/node": "22.20.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "playwright": "1.62.0",
+    "tsx": "4.23.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "4.1.10"
   }
 }
