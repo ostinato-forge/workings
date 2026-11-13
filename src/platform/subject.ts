@@ -6,6 +6,7 @@
  */
 
 import type { ComponentType } from "react";
+import { PLATFORM_MEASURES } from "./measures";
 import type { EngineResult, StageRunRecord } from "./run-record";
 import { isPlainRecord } from "./stage-event";
 
@@ -194,6 +195,9 @@ export function defineSubject<World>(subject: Subject<World>): Subject<World> {
   }
   for (const [name, measure] of subject.measures) {
     requireId(subjectId, "measure name", name);
+    if (PLATFORM_MEASURES.has(name)) {
+      throw new Error(`Subject "${subjectId}" has a measure "${name}" with the same name as a platform measure.`);
+    }
     for (const [argName, spec] of Object.entries(measure.args)) {
       requireId(subjectId, "argument name", argName);
       requireSatisfiable(subjectId, name, argName, spec);
